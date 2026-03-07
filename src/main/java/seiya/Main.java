@@ -7,16 +7,22 @@ import seiya.controllers.ConsoleHumanController;
 import seiya.controllers.Controller;
 import seiya.game.BattleGame;
 import seiya.game.Player;
+import seiya.ui.BattleUi;
 
 import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
+        String mode = args.length == 0 ? "hva" : args[0].toLowerCase();
+        if ("ui".equals(mode)) {
+            BattleUi.launch();
+            return;
+        }
+
         Scanner scanner = new Scanner(System.in);
         Controller ai = new BasicAiController();
         Controller human = new ConsoleHumanController(scanner);
 
-        String mode = args.length == 0 ? "hva" : args[0].toLowerCase();
         Controller p1Controller = human;
         Controller p2Controller = ai;
 
