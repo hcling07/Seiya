@@ -6,7 +6,11 @@ public class Defend extends Action {
     private final int damageReductionPercent;
 
     public Defend(int damageReductionPercent) {
-        super("Defend");
+        this(damageReductionPercent, damageReductionPercent);
+    }
+
+    public Defend(int damageReductionPercent, double defenseValue) {
+        super("Defend", 0.0, defenseValue);
         this.damageReductionPercent = damageReductionPercent;
     }
 

@@ -54,11 +54,11 @@ public class BattleGame {
 
     private String statusLine() {
         return playerOne.name() + " HP=" + NumberFormatter.fmt(playerOne.character().health())
-            + ", Spirit=" + playerOne.character().spirit()
+            + ", Spirit=" + NumberFormatter.fmt(playerOne.character().spirit())
             + ", Armor=" + playerOne.character().armorWorn()
             + " | "
             + playerTwo.name() + " HP=" + NumberFormatter.fmt(playerTwo.character().health())
-            + ", Spirit=" + playerTwo.character().spirit()
+            + ", Spirit=" + NumberFormatter.fmt(playerTwo.character().spirit())
             + ", Armor=" + playerTwo.character().armorWorn();
     }
 
@@ -79,8 +79,8 @@ public class BattleGame {
             return playerTwo;
         }
 
-        int spiritOne = playerOne.character().spirit();
-        int spiritTwo = playerTwo.character().spirit();
+        double spiritOne = playerOne.character().spirit();
+        double spiritTwo = playerTwo.character().spirit();
         if (spiritOne > spiritTwo) {
             return playerOne;
         }

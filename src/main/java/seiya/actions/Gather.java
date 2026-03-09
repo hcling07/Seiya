@@ -6,7 +6,7 @@ public class Gather extends Action {
     private final int spiritGain;
 
     public Gather(int spiritGain) {
-        super("Gather");
+        super("Gather", 0.0, 0.0);
         this.spiritGain = spiritGain;
     }
 

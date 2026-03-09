@@ -13,7 +13,7 @@ public abstract class Character {
     private double health;
     private final int totalArmor;
     private int armorWorn;
-    private int spirit;
+    private double spirit;
     private int defendPercent;
     private final List<Attack> attackMoves;
     private final List<ConsumableAttack> consumables;
@@ -22,7 +22,7 @@ public abstract class Character {
         String name,
         double maxHealth,
         int totalArmor,
-        int startingSpirit,
+        double startingSpirit,
         List<Attack> attackMoves,
         List<ConsumableAttack> consumables
     ) {
@@ -47,7 +47,7 @@ public abstract class Character {
         return maxHealth;
     }
 
-    public int spirit() {
+    public double spirit() {
         return spirit;
     }
 
@@ -75,12 +75,12 @@ public abstract class Character {
         return Collections.unmodifiableList(consumables);
     }
 
-    public void gainSpirit(int amount) {
-        spirit += Math.max(0, amount);
+    public void gainSpirit(double amount) {
+        spirit += Math.max(0.0, amount);
     }
 
-    public void spendSpirit(int amount) {
-        if (amount < 0 || amount > spirit) {
+    public void spendSpirit(double amount) {
+        if (amount < 0.0 || amount > spirit) {
             throw new IllegalArgumentException("Invalid spirit spend: " + amount);
         }
         spirit -= amount;

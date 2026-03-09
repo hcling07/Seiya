@@ -3,8 +3,14 @@ package seiya.actions;
 import seiya.characters.Character;
 
 public class WearArmor extends Action {
+    private static final double DEFAULT_DEFENSE_VALUE = 3.0;
+
     public WearArmor() {
-        super("Wear Armor");
+        this(DEFAULT_DEFENSE_VALUE);
+    }
+
+    public WearArmor(double defenseValue) {
+        super("Wear Armor", 0.0, defenseValue);
     }
 
     @Override

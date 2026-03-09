@@ -20,12 +20,12 @@ class BattleGameTest {
     @Test
     void gatherIncreasesSpirit() {
         Seiya seiya = new Seiya();
-        int before = seiya.spirit();
+        double before = seiya.spirit();
 
         Gather gather = new Gather(2);
         gather.execute(seiya, seiya);
 
-        assertEquals(before + 2, seiya.spirit());
+        assertEquals(before + 2, seiya.spirit(), DELTA);
     }
 
     @Test
@@ -90,8 +90,8 @@ class BattleGameTest {
         double p1Before = seiya.health();
         double p2Before = shiryu.health();
 
-        p1Attack.executeForClash(seiya, shiryu, p1Attack.attackValue() <= p2Attack.defenseValue());
-        p2Attack.executeForClash(shiryu, seiya, p2Attack.attackValue() <= p1Attack.defenseValue());
+        p1Attack.executeForClash(seiya, shiryu, p2Attack.defenseValue(), p1Attack.attackValue() <= p2Attack.defenseValue());
+        p2Attack.executeForClash(shiryu, seiya, p1Attack.defenseValue(), p2Attack.attackValue() <= p1Attack.defenseValue());
 
         assertEquals(p1Before, seiya.health(), DELTA);
         assertEquals(p2Before, shiryu.health(), DELTA);
@@ -112,6 +112,59 @@ class BattleGameTest {
         assertTrue(joinedLogs.contains("defense=3"));
         assertTrue(joinedLogs.contains("targetArmor=1"));
         assertTrue(joinedLogs.contains("projectedDamage=7"));
+    }
+
+    @Test
+    void simultaneousDefendUsesDefenseValueToBlockAttack() {
+        Player p1 = new Player("P1", new Seiya(), this::simpleAggressiveChoice);
+        Player p2 = new Player("P2", new Shiryu(), this::simpleAggressiveChoice);
+
+        Attack attack = new Attack("Test Hit", 0, 8, 2);
+        Defend defend = new Defend(50, 8);
+        double p2Before = p2.character().health();
+
+        TurnResolver.resolve(p1, attack, p2, defend);
+
+        assertEquals(p2Before, p2.character().health(), DELTA);
+    }
+
+    @Test
+    void simultaneousGatherRemainsVulnerable() {
+        Player p1 = new Player("P1", new Seiya(), this::simpleAggressiveChoice);
+        Player p2 = new Player("P2", new Shiryu(), this::simpleAggressiveChoice);
+
+        Attack attack = new Attack("Test Hit", 0, 8, 2);
+        Gather gather = new Gather(2);
+        double p2Before = p2.character().health();
+
+        TurnResolver.resolve(p1, attack, p2, gather);
+
+        assertEquals(p2Before - 8, p2.character().health(), DELTA);
+    }
+
+    @Test
+    void simultaneousAttackDealsOnlyAttackMinusOpposingDefense() {
+        Player p1 = new Player("P1", new Seiya(), this::simpleAggressiveChoice);
+        Player p2 = new Player("P2", new Shiryu(), this::simpleAggressiveChoice);
+
+        Attack attack = new Attack("Test Hit", 0, 10, 2);
+        Defend defend = new Defend(50, 4);
+        double p2Before = p2.character().health();
+
+        TurnResolver.resolve(p1, attack, p2, defend);
+
+        assertEquals(p2Before - 6, p2.character().health(), DELTA);
+    }
+
+    @Test
+    void attackCanSpendFractionalSpiritCost() {
+        Seiya seiya = new Seiya();
+        Shiryu shiryu = new Shiryu();
+        Attack attack = new Attack("Fractional Hit", 0.5, 3);
+
+        attack.execute(seiya, shiryu);
+
+        assertEquals(0.5, seiya.spirit(), DELTA);
     }
 
     private Action simpleAggressiveChoice(Player self, Player opponent, java.util.List<Action> available) {

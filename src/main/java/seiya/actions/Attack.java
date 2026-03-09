@@ -4,31 +4,20 @@ import seiya.characters.Character;
 import seiya.util.NumberFormatter;
 
 public class Attack extends Action {
-    private final int spiritCost;
-    private final double attackValue;
-    private final double defenseValue;
+    private final double spiritCost;
 
-    public Attack(String name, int spiritCost, double value) {
+    public Attack(String name, double spiritCost, double value) {
         this(name, spiritCost, value, value);
     }
 
-    public Attack(String name, int spiritCost, double attackValue, double defenseValue) {
-        super(name);
+    public Attack(String name, double spiritCost, double attackValue, double defenseValue) {
+        super(name, attackValue, defenseValue);
         this.spiritCost = spiritCost;
-        this.attackValue = attackValue;
-        this.defenseValue = defenseValue;
     }
 
-    public int spiritCost() {
+    @Override
+    public double spiritCost() {
         return spiritCost;
-    }
-
-    public double attackValue() {
-        return attackValue;
-    }
-
-    public double defenseValue() {
-        return defenseValue;
     }
 
     @Override
@@ -43,12 +32,12 @@ public class Attack extends Action {
         }
 
         actor.spendSpirit(spiritCost);
-        double dealt = target.receiveDamage(attackValue);
+        double dealt = target.receiveDamage(attackValue());
         afterExecute(actor);
         return actor.name() + " used " + name() + " and dealt " + NumberFormatter.fmt(dealt) + " damage to " + target.name() + ".";
     }
 
-    public String executeForClash(Character actor, Character target, boolean blockedByDefense) {
+    public String executeForClash(Character actor, Character target, double opposingDefenseValue, boolean blockedByDefense) {
         if (!canExecute(actor)) {
             return actor.name() + " does not have enough spirit for " + name() + ".";
         }
@@ -56,7 +45,7 @@ public class Attack extends Action {
         actor.spendSpirit(spiritCost);
         double dealt = 0.0;
         if (!blockedByDefense) {
-            dealt = target.receiveDamage(attackValue);
+            dealt = target.receiveDamage(attackValue() - opposingDefenseValue);
         }
         afterExecute(actor);
 

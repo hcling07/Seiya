@@ -3,7 +3,7 @@ package seiya.actions;
 import seiya.characters.Character;
 
 public class ConsumableAttack extends Attack {
-    public ConsumableAttack(String name, int spiritCost, int damage) {
+    public ConsumableAttack(String name, double spiritCost, int damage) {
         super(name, spiritCost, damage);
     }
 
@@ -22,12 +22,12 @@ public class ConsumableAttack extends Attack {
     }
 
     @Override
-    public String executeForClash(Character actor, Character target, boolean blockedByDefense) {
+    public String executeForClash(Character actor, Character target, double opposingDefenseValue, boolean blockedByDefense) {
         if (!canExecute(actor)) {
             return actor.name() + " cannot use consumable " + name() + ".";
         }
 
-        return super.executeForClash(actor, target, blockedByDefense) + " (consumable spent)";
+        return super.executeForClash(actor, target, opposingDefenseValue, blockedByDefense) + " (consumable spent)";
     }
 
     @Override

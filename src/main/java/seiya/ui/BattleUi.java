@@ -84,7 +84,7 @@ public class BattleUi {
         return player.name() + " (" + player.character().name() + ")\n"
             + "HP: " + NumberFormatter.fmt(player.character().health()) + "/"
             + NumberFormatter.fmt(player.character().maxHealth()) + "\n"
-            + "Spirit: " + player.character().spirit() + "\n"
+            + "Spirit: " + NumberFormatter.fmt(player.character().spirit()) + "\n"
             + "Armor: " + player.character().armorWorn() + "/" + player.character().totalArmor() + "\n"
             + "Consumables left: " + player.character().consumables().size();
     }
