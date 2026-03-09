@@ -7,6 +7,7 @@ import seiya.actions.ConsumableAttack;
 import seiya.actions.Defend;
 import seiya.actions.Gather;
 import seiya.actions.WearArmor;
+import seiya.characters.Hyoga;
 import seiya.characters.Seiya;
 import seiya.characters.Shiryu;
 
@@ -57,15 +58,86 @@ class BattleGameTest {
     }
 
     @Test
+    void armorBreaksWhenAttackPenetratesIt() {
+        Seiya seiya = new Seiya();
+        Shiryu shiryu = new Shiryu();
+        seiya.wearArmorPiece();
+        seiya.wearArmorPiece();
+
+        Attack hit = new Attack("Test Hit", 0, 5);
+        hit.execute(shiryu, seiya);
+
+        assertEquals(1, seiya.armorWorn());
+    }
+
+    @Test
+    void armorStaysWhenAttackDoesNotPenetrateIt() {
+        Seiya seiya = new Seiya();
+        Shiryu shiryu = new Shiryu();
+        seiya.wearArmorPiece();
+        seiya.wearArmorPiece();
+
+        Attack hit = new Attack("Light Hit", 0, 2);
+        hit.execute(shiryu, seiya);
+
+        assertEquals(2, seiya.armorWorn());
+    }
+
+    @Test
+    void brokenArmorDoesNotAllowExtraWearBeyondTotalArmor() {
+        Seiya seiya = new Seiya();
+        Shiryu shiryu = new Shiryu();
+        WearArmor wearArmor = new WearArmor();
+        Attack hit = new Attack("Break Armor", 0, 10);
+
+        wearArmor.execute(seiya, seiya);
+        hit.execute(shiryu, seiya);
+
+        wearArmor.execute(seiya, seiya);
+        wearArmor.execute(seiya, seiya);
+        wearArmor.execute(seiya, seiya);
+
+        assertEquals(2, seiya.armorWorn());
+        assertFalse(seiya.canWearArmor());
+    }
+
+    @Test
     void consumableCanOnlyBeUsedOnce() {
         Seiya seiya = new Seiya();
         Shiryu shiryu = new Shiryu();
         ConsumableAttack consumable = seiya.consumables().get(0);
 
+        seiya.wearArmorPiece();
         consumable.execute(seiya, shiryu);
 
         assertFalse(seiya.hasConsumable(consumable));
         assertFalse(consumable.canExecute(seiya));
+    }
+
+    @Test
+    void consumableRequiresArmorToBeEquipped() {
+        Seiya seiya = new Seiya();
+        ConsumableAttack consumable = seiya.consumables().get(0);
+
+        assertFalse(consumable.canExecute(seiya));
+
+        seiya.wearArmorPiece();
+
+        assertTrue(consumable.canExecute(seiya));
+    }
+
+    @Test
+    void consumableStaysAvailableAfterArmorBreaks() {
+        Seiya seiya = new Seiya();
+        Shiryu shiryu = new Shiryu();
+        ConsumableAttack consumable = seiya.consumables().get(0);
+
+        seiya.wearArmorPiece();
+        Attack hit = new Attack("Heavy Hit", 0, 6);
+        hit.execute(shiryu, seiya);
+
+        assertEquals(0, seiya.armorWorn());
+        assertTrue(consumable.canExecute(seiya));
     }
 
     @Test
@@ -76,6 +148,18 @@ class BattleGameTest {
         BattleGame game = new BattleGame(p1, p2, 100);
         String log = game.run();
 
+        assertTrue(log.contains("Winner:") || log.contains("Result: Draw"));
+    }
+
+    @Test
+    void newCharacterCanParticipateInBattle() {
+        Player p1 = new Player("P1", new Hyoga(), this::simpleAggressiveChoice);
+        Player p2 = new Player("P2", new Shiryu(), this::simpleAggressiveChoice);
+
+        BattleGame game = new BattleGame(p1, p2, 20);
+        String log = game.run();
+
+        assertTrue(log.contains("Hyoga"));
         assertTrue(log.contains("Winner:") || log.contains("Result: Draw"));
     }
 

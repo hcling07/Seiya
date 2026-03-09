@@ -1,41 +1,31 @@
 package seiya;
 
+import seiya.characters.Hyoga;
 import seiya.characters.Seiya;
 import seiya.characters.Shiryu;
 import seiya.controllers.BasicAiController;
-import seiya.controllers.ConsoleHumanController;
 import seiya.controllers.Controller;
 import seiya.game.BattleGame;
 import seiya.game.Player;
 import seiya.ui.BattleUi;
 
-import java.util.Scanner;
-
 public class Main {
     public static void main(String[] args) {
-        String mode = args.length == 0 ? "hva" : args[0].toLowerCase();
+        String mode = args.length == 0 ? "ui" : args[0].toLowerCase();
         if ("ui".equals(mode)) {
             BattleUi.launch();
             return;
         }
 
-        Scanner scanner = new Scanner(System.in);
-        Controller ai = new BasicAiController();
-        Controller human = new ConsoleHumanController(scanner);
-
-        Controller p1Controller = human;
-        Controller p2Controller = ai;
-
-        if ("hvh".equals(mode)) {
-            p2Controller = human;
-        } else if ("ava".equals(mode)) {
-            p1Controller = ai;
-            p2Controller = ai;
+        if ("ava".equals(mode)) {
+            Controller ai = new BasicAiController();
+            Player p1 = new Player("Player 1", new Seiya(), ai);
+            Player p2 = new Player("Player 2", new Hyoga(), ai);
+            BattleGame game = new BattleGame(p1, p2);
+            game.run(System.out);
+            return;
         }
 
-        Player p1 = new Player("Player 1", new Seiya(), p1Controller);
-        Player p2 = new Player("Player 2", new Shiryu(), p2Controller);
-        BattleGame game = new BattleGame(p1, p2);
-        game.run(System.out);
+        throw new IllegalArgumentException("Unsupported mode: " + mode + ". Use ui or ava.");
     }
 }

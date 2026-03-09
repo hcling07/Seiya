@@ -9,7 +9,7 @@ public class ConsumableAttack extends Attack {
 
     @Override
     public boolean canExecute(Character actor) {
-        return super.canExecute(actor) && actor.hasConsumable(this);
+        return super.canExecute(actor) && actor.hasConsumable(this) && actor.isConsumableUnlocked();
     }
 
     @Override

@@ -13,6 +13,8 @@ public abstract class Character {
     private double health;
     private final int totalArmor;
     private int armorWorn;
+    private int armorUsed;
+    private boolean consumableUnlocked;
     private double spirit;
     private int defendPercent;
     private final List<Attack> attackMoves;
@@ -63,6 +65,14 @@ public abstract class Character {
         return totalArmor;
     }
 
+    public boolean hasArmorEquipped() {
+        return armorWorn > 0;
+    }
+
+    public boolean isConsumableUnlocked() {
+        return consumableUnlocked;
+    }
+
     public boolean isAlive() {
         return health > 0;
     }
@@ -87,7 +97,7 @@ public abstract class Character {
     }
 
     public boolean canWearArmor() {
-        return armorWorn < totalArmor;
+        return armorUsed < totalArmor;
     }
 
     public void wearArmorPiece() {
@@ -95,6 +105,15 @@ public abstract class Character {
             return;
         }
         armorWorn++;
+        armorUsed++;
+        consumableUnlocked = true;
+    }
+
+    public void breakArmorPiece() {
+        if (armorWorn <= 0) {
+            return;
+        }
+        armorWorn--;
     }
 
     public void activateDefense(int damageReductionPercent) {
@@ -109,7 +128,16 @@ public abstract class Character {
     }
 
     public double receiveDamage(double rawDamage) {
-        double damage = previewDamageTaken(rawDamage);
+        double reducedByDefense = rawDamage * defendPercent / 100.0;
+        double remainingAfterDefense = rawDamage - reducedByDefense;
+        double reducedByArmor = armorWorn;
+        double damageBeforeFloor = remainingAfterDefense - reducedByArmor;
+        double damage = Math.max(1.0, damageBeforeFloor);
+
+        if (armorWorn > 0 && damageBeforeFloor > 0.0) {
+            breakArmorPiece();
+        }
+
         health = Math.max(0.0, health - damage);
         defendPercent = 0;
         return damage;
