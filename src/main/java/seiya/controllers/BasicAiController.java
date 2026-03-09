@@ -16,7 +16,7 @@ public class BasicAiController implements Controller {
         Optional<Action> lethal = availableActions.stream()
             .filter(Attack.class::isInstance)
             .map(Attack.class::cast)
-            .filter(attack -> opponent.character().previewDamageTaken(attack.damage()) >= opponent.character().health())
+            .filter(attack -> opponent.character().previewDamageTaken(attack.attackValue()) >= opponent.character().health())
             .map(Action.class::cast)
             .findFirst();
         if (lethal.isPresent()) {
@@ -25,7 +25,7 @@ public class BasicAiController implements Controller {
 
         Optional<Action> bestAttack = availableActions.stream()
             .filter(Attack.class::isInstance)
-            .max(Comparator.comparingInt(action -> ((Attack) action).damage()));
+            .max(Comparator.comparingDouble(action -> ((Attack) action).attackValue()));
         if (bestAttack.isPresent()) {
             return bestAttack.get();
         }

@@ -46,13 +46,21 @@ public class Player {
             .collect(Collectors.toList());
     }
 
-    public String takeTurn(Player opponent) {
+    public Action chooseAction(Player opponent) {
         List<Action> available = availableActions();
         Action action = controller.chooseAction(this, opponent, available);
         if (action == null || !available.contains(action)) {
             action = available.get(0);
         }
+        return action;
+    }
 
+    public String executeAction(Action action, Player opponent) {
         return action.execute(character, opponent.character);
+    }
+
+    public String takeTurn(Player opponent) {
+        Action action = chooseAction(opponent);
+        return executeAction(action, opponent);
     }
 }

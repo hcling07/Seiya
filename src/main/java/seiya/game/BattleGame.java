@@ -1,6 +1,10 @@
 package seiya.game;
 
+import seiya.actions.Action;
+import seiya.util.NumberFormatter;
+
 import java.io.PrintStream;
+import java.util.List;
 
 public class BattleGame {
     private final Player playerOne;
@@ -28,11 +32,13 @@ public class BattleGame {
         while (playerOne.character().isAlive() && playerTwo.character().isAlive() && round <= maxRounds) {
             appendLine(log, "Round " + round, out);
             appendLine(log, statusLine(), out);
-            executeTurn(playerOne, playerTwo, log, out);
-            if (!playerTwo.character().isAlive()) {
-                break;
+
+            Action actionOne = playerOne.chooseAction(playerTwo);
+            Action actionTwo = playerTwo.chooseAction(playerOne);
+            List<String> turnLogs = TurnResolver.resolve(playerOne, actionOne, playerTwo, actionTwo);
+            for (String turnLog : turnLogs) {
+                appendLine(log, turnLog, out);
             }
-            executeTurn(playerTwo, playerOne, log, out);
             appendLine(log, "", out);
             round++;
         }
@@ -46,18 +52,12 @@ public class BattleGame {
         return log.toString();
     }
 
-    private void executeTurn(Player actor, Player target, StringBuilder log, PrintStream out) {
-        String turnResult = actor.takeTurn(target);
-        appendLine(log, actor.name() + ": " + turnResult, out);
-        appendLine(log, statusLine(), out);
-    }
-
     private String statusLine() {
-        return playerOne.name() + " HP=" + playerOne.character().health()
+        return playerOne.name() + " HP=" + NumberFormatter.fmt(playerOne.character().health())
             + ", Spirit=" + playerOne.character().spirit()
             + ", Armor=" + playerOne.character().armorWorn()
             + " | "
-            + playerTwo.name() + " HP=" + playerTwo.character().health()
+            + playerTwo.name() + " HP=" + NumberFormatter.fmt(playerTwo.character().health())
             + ", Spirit=" + playerTwo.character().spirit()
             + ", Armor=" + playerTwo.character().armorWorn();
     }
@@ -70,8 +70,8 @@ public class BattleGame {
             return playerTwo;
         }
 
-        int hpOne = playerOne.character().health();
-        int hpTwo = playerTwo.character().health();
+        double hpOne = playerOne.character().health();
+        double hpTwo = playerTwo.character().health();
         if (hpOne > hpTwo) {
             return playerOne;
         }

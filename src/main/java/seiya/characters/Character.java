@@ -9,8 +9,8 @@ import java.util.List;
 
 public abstract class Character {
     private final String name;
-    private final int maxHealth;
-    private int health;
+    private final double maxHealth;
+    private double health;
     private final int totalArmor;
     private int armorWorn;
     private int spirit;
@@ -20,7 +20,7 @@ public abstract class Character {
 
     protected Character(
         String name,
-        int maxHealth,
+        double maxHealth,
         int totalArmor,
         int startingSpirit,
         List<Attack> attackMoves,
@@ -39,11 +39,11 @@ public abstract class Character {
         return name;
     }
 
-    public int health() {
+    public double health() {
         return health;
     }
 
-    public int maxHealth() {
+    public double maxHealth() {
         return maxHealth;
     }
 
@@ -53,6 +53,10 @@ public abstract class Character {
 
     public int armorWorn() {
         return armorWorn;
+    }
+
+    public int defendPercent() {
+        return defendPercent;
     }
 
     public int totalArmor() {
@@ -97,16 +101,16 @@ public abstract class Character {
         defendPercent = Math.max(0, Math.min(100, damageReductionPercent));
     }
 
-    public int previewDamageTaken(int rawDamage) {
-        int reducedByDefense = rawDamage * defendPercent / 100;
-        int reducedByArmor = armorWorn;
-        int finalDamage = rawDamage - reducedByDefense - reducedByArmor;
-        return Math.max(1, finalDamage);
+    public double previewDamageTaken(double rawDamage) {
+        double reducedByDefense = rawDamage * defendPercent / 100.0;
+        double reducedByArmor = armorWorn;
+        double finalDamage = rawDamage - reducedByDefense - reducedByArmor;
+        return Math.max(1.0, finalDamage);
     }
 
-    public int receiveDamage(int rawDamage) {
-        int damage = previewDamageTaken(rawDamage);
-        health = Math.max(0, health - damage);
+    public double receiveDamage(double rawDamage) {
+        double damage = previewDamageTaken(rawDamage);
+        health = Math.max(0.0, health - damage);
         defendPercent = 0;
         return damage;
     }

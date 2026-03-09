@@ -6,6 +6,8 @@ import seiya.characters.Shiryu;
 import seiya.controllers.BasicAiController;
 import seiya.controllers.Controller;
 import seiya.game.Player;
+import seiya.game.TurnResolver;
+import seiya.util.NumberFormatter;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -80,7 +82,8 @@ public class BattleUi {
 
     private String buildPlayerStatus(Player player) {
         return player.name() + " (" + player.character().name() + ")\n"
-            + "HP: " + player.character().health() + "/" + player.character().maxHealth() + "\n"
+            + "HP: " + NumberFormatter.fmt(player.character().health()) + "/"
+            + NumberFormatter.fmt(player.character().maxHealth()) + "\n"
             + "Spirit: " + player.character().spirit() + "\n"
             + "Armor: " + player.character().armorWorn() + "/" + player.character().totalArmor() + "\n"
             + "Consumables left: " + player.character().consumables().size();
@@ -103,20 +106,10 @@ public class BattleUi {
             return;
         }
 
-        appendLog(humanPlayer.name() + ": " + action.execute(humanPlayer.character(), aiPlayer.character()));
-        refreshStatus();
-
-        if (checkBattleEnd()) {
-            return;
+        Action aiAction = aiPlayer.chooseAction(humanPlayer);
+        for (String line : TurnResolver.resolve(humanPlayer, action, aiPlayer, aiAction)) {
+            appendLog(line);
         }
-
-        List<Action> aiActions = aiPlayer.availableActions();
-        Action aiAction = aiController.chooseAction(aiPlayer, humanPlayer, aiActions);
-        if (aiAction == null || !aiActions.contains(aiAction)) {
-            aiAction = aiActions.get(0);
-        }
-
-        appendLog(aiPlayer.name() + ": " + aiAction.execute(aiPlayer.character(), humanPlayer.character()));
         refreshStatus();
 
         if (checkBattleEnd()) {

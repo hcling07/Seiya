@@ -18,8 +18,20 @@ public class ConsumableAttack extends Attack {
             return actor.name() + " cannot use consumable " + name() + ".";
         }
 
-        String result = super.execute(actor, target);
+        return super.execute(actor, target) + " (consumable spent)";
+    }
+
+    @Override
+    public String executeForClash(Character actor, Character target, boolean blockedByDefense) {
+        if (!canExecute(actor)) {
+            return actor.name() + " cannot use consumable " + name() + ".";
+        }
+
+        return super.executeForClash(actor, target, blockedByDefense) + " (consumable spent)";
+    }
+
+    @Override
+    protected void afterExecute(Character actor) {
         actor.consume(this);
-        return result + " (consumable spent)";
     }
 }
