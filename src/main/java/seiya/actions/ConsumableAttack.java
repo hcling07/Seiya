@@ -7,6 +7,10 @@ public class ConsumableAttack extends Attack {
         super(name, spiritCost, damage);
     }
 
+    public ConsumableAttack(String name, double spiritCost, double attackValue, double defenseValue) {
+        super(name, spiritCost, attackValue, defenseValue);
+    }
+
     @Override
     public boolean canExecute(Character actor) {
         return super.canExecute(actor) && actor.hasConsumable(this) && actor.isConsumableUnlocked();

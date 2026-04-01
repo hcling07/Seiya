@@ -3,9 +3,9 @@ package seiya.actions;
 import seiya.characters.Character;
 
 public class Gather extends Action {
-    private final int spiritGain;
+    private final double spiritGain;
 
-    public Gather(int spiritGain) {
+    public Gather(double spiritGain) {
         super("Gather", 0.0, 0.0);
         this.spiritGain = spiritGain;
     }

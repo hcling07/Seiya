@@ -15,14 +15,19 @@ public class Player {
     private final String name;
     private final Character character;
     private final Controller controller;
-    private final Gather gather = new Gather(2);
-    private final Defend defend = new Defend(50);
-    private final WearArmor wearArmor = new WearArmor();
+    private final Gather gather;
+    private final Defend defend;
+    private final WearArmor wearArmor;
+    private int turnsTaken;
 
     public Player(String name, Character character, Controller controller) {
         this.name = name;
         this.character = character;
         this.controller = controller;
+        RuleSet ruleSet = character.ruleSet();
+        this.gather = new Gather(ruleSet.gatherGain());
+        this.defend = new Defend(ruleSet.defendReductionPercent(), ruleSet.defendValue());
+        this.wearArmor = new WearArmor(ruleSet.wearArmorDefenseValue());
     }
 
     public String name() {
@@ -43,6 +48,7 @@ public class Player {
 
         return actions.stream()
             .filter(action -> action.canExecute(character))
+            .filter(this::isAvailableThisTurn)
             .collect(Collectors.toList());
     }
 
@@ -62,5 +68,16 @@ public class Player {
     public String takeTurn(Player opponent) {
         Action action = chooseAction(opponent);
         return executeAction(action, opponent);
+    }
+
+    public void recordTurn() {
+        turnsTaken++;
+    }
+
+    private boolean isAvailableThisTurn(Action action) {
+        if (character.ruleSet() == RuleSet.CLASSIC && action instanceof WearArmor) {
+            return turnsTaken > 0;
+        }
+        return true;
     }
 }

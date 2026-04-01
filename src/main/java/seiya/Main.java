@@ -2,11 +2,11 @@ package seiya;
 
 import seiya.characters.Hyoga;
 import seiya.characters.Seiya;
-import seiya.characters.Shiryu;
 import seiya.controllers.BasicAiController;
 import seiya.controllers.Controller;
 import seiya.game.BattleGame;
 import seiya.game.Player;
+import seiya.game.RuleSet;
 import seiya.ui.BattleUi;
 
 public class Main {
@@ -18,9 +18,10 @@ public class Main {
         }
 
         if ("ava".equals(mode)) {
+            RuleSet ruleSet = args.length > 1 ? RuleSet.valueOf(args[1].toUpperCase()) : RuleSet.DEFAULT;
             Controller ai = new BasicAiController();
-            Player p1 = new Player("Player 1", new Seiya(), ai);
-            Player p2 = new Player("Player 2", new Hyoga(), ai);
+            Player p1 = new Player("Player 1", new Seiya(ruleSet), ai);
+            Player p2 = new Player("Player 2", new Hyoga(ruleSet), ai);
             BattleGame game = new BattleGame(p1, p2);
             game.run(System.out);
             return;

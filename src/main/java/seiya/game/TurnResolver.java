@@ -20,9 +20,7 @@ public final class TurnResolver {
         logs.add(describeAction(playerOne, actionOne, playerTwo, actionTwo, oneBlocked));
         logs.add(describeAction(playerTwo, actionTwo, playerOne, actionOne, twoBlocked));
         logs.add(playerOne.name() + ": " + executeAction(playerOne, actionOne, playerTwo, actionTwo, oneBlocked));
-        if (playerTwo.character().isAlive()) {
-            logs.add(playerTwo.name() + ": " + executeAction(playerTwo, actionTwo, playerOne, actionOne, twoBlocked));
-        }
+        logs.add(playerTwo.name() + ": " + executeAction(playerTwo, actionTwo, playerOne, actionOne, twoBlocked));
         return logs;
     }
 
@@ -51,14 +49,18 @@ public final class TurnResolver {
     }
 
     private static String executeAction(Player actor, Action action, Player target, Action opposingAction, boolean blockedByDefense) {
+        String result;
         if (action instanceof Attack) {
-            return ((Attack) action).executeForClash(
+            result = ((Attack) action).executeForClash(
                 actor.character(),
                 target.character(),
                 opposingAction.defenseValue(),
                 blockedByDefense
             );
+        } else {
+            result = actor.executeAction(action, target);
         }
-        return actor.executeAction(action, target);
+        actor.recordTurn();
+        return result;
     }
 }

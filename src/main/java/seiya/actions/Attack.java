@@ -34,7 +34,8 @@ public class Attack extends Action {
         actor.spendSpirit(spiritCost);
         double dealt = target.receiveDamage(attackValue());
         afterExecute(actor);
-        return actor.name() + " used " + name() + " and dealt " + NumberFormatter.fmt(dealt) + " damage to " + target.name() + ".";
+        return actor.name() + " used " + name() + " and caused " + NumberFormatter.fmt(dealt)
+            + " " + target.impactLabel() + " to " + target.name() + ".";
     }
 
     public String executeForClash(Character actor, Character target, double opposingDefenseValue, boolean blockedByDefense) {
@@ -53,7 +54,8 @@ public class Attack extends Action {
             return actor.name() + " used " + name() + " but could not break through " + target.name() + "'s defense.";
         }
 
-        return actor.name() + " used " + name() + " and dealt " + NumberFormatter.fmt(dealt) + " damage to " + target.name() + ".";
+        return actor.name() + " used " + name() + " and caused " + NumberFormatter.fmt(dealt)
+            + " " + target.impactLabel() + " to " + target.name() + ".";
     }
 
     protected void afterExecute(Character actor) {

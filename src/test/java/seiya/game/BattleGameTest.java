@@ -10,10 +10,12 @@ import seiya.actions.WearArmor;
 import seiya.characters.Hyoga;
 import seiya.characters.Seiya;
 import seiya.characters.Shiryu;
+import seiya.controllers.BasicAiController;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class BattleGameTest {
     private static final double DELTA = 0.0001;
@@ -241,14 +243,127 @@ class BattleGameTest {
     }
 
     @Test
+    void simultaneousTurnsStillResolveAfterFirstPlayerDefeatsOpponent() {
+        Player p1 = new Player("P1", new Seiya(), this::simpleAggressiveChoice);
+        Player p2 = new Player("P2", new Shiryu(), this::simpleAggressiveChoice);
+
+        Attack lethal = new Attack("Lethal", 0, 100, 0);
+        Gather gather = new Gather(2);
+
+        TurnResolver.resolve(p1, lethal, p2, gather);
+
+        assertEquals(2.0, p2.character().spirit(), DELTA);
+    }
+
+    @Test
     void attackCanSpendFractionalSpiritCost() {
         Seiya seiya = new Seiya();
         Shiryu shiryu = new Shiryu();
         Attack attack = new Attack("Fractional Hit", 0.5, 3);
+        seiya.gainSpirit(1.0);
 
         attack.execute(seiya, shiryu);
 
         assertEquals(0.5, seiya.spirit(), DELTA);
+    }
+
+    @Test
+    void classicGatherIncreasesSpiritByOne() {
+        Player player = new Player("P1", new Seiya(RuleSet.CLASSIC), new BasicAiController());
+        double before = player.character().spirit();
+        Gather gather = findAction(player, Gather.class);
+
+        gather.execute(player.character(), player.character());
+
+        assertEquals(before + 1, player.character().spirit(), DELTA);
+    }
+
+    @Test
+    void charactersStartWithZeroSpirit() {
+        assertEquals(0.0, new Seiya().spirit(), DELTA);
+        assertEquals(0.0, new Shiryu().spirit(), DELTA);
+        assertEquals(0.0, new Hyoga().spirit(), DELTA);
+    }
+
+    @Test
+    void classicDefendAndWearArmorUseFiveDefenseValue() {
+        Player player = new Player("P1", new Seiya(RuleSet.CLASSIC), new BasicAiController());
+        Player opponent = new Player("P2", new Shiryu(RuleSet.CLASSIC), new BasicAiController());
+        Defend defend = findAction(player, Defend.class);
+
+        TurnResolver.resolve(player, findAction(player, Gather.class), opponent, findAction(opponent, Gather.class));
+
+        WearArmor wearArmor = findAction(player, WearArmor.class);
+
+        assertEquals(5.0, defend.defenseValue(), DELTA);
+        assertEquals(5.0, wearArmor.defenseValue(), DELTA);
+    }
+
+    @Test
+    void classicWearArmorStartsLockedUntilAfterFirstTurn() {
+        Player p1 = new Player("P1", new Seiya(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player p2 = new Player("P2", new Shiryu(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+
+        assertFalse(hasAction(p1, WearArmor.class));
+
+        TurnResolver.resolve(p1, findAction(p1, Gather.class), p2, findAction(p2, Gather.class));
+
+        assertTrue(hasAction(p1, WearArmor.class));
+        assertTrue(hasAction(p2, WearArmor.class));
+    }
+
+    @Test
+    void classicConsumablesCostZeroSpiritAfterArmorUnlock() {
+        Seiya seiya = new Seiya(RuleSet.CLASSIC);
+        ConsumableAttack consumable = seiya.consumables().get(0);
+
+        assertFalse(consumable.canExecute(seiya));
+
+        seiya.wearArmorPiece();
+
+        assertEquals(0.0, consumable.spiritCost(), DELTA);
+        assertTrue(consumable.canExecute(seiya));
+    }
+
+    @Test
+    void classicAttackWithoutArmorDefeatsCharacter() {
+        Seiya seiya = new Seiya(RuleSet.CLASSIC);
+        Shiryu shiryu = new Shiryu(RuleSet.CLASSIC);
+        Attack hit = new Attack("Classic Hit", 0, 1);
+
+        hit.execute(shiryu, seiya);
+
+        assertFalse(seiya.isAlive());
+    }
+
+    @Test
+    void classicAttackCanReduceArmorToZeroWithoutDefeat() {
+        Seiya seiya = new Seiya(RuleSet.CLASSIC);
+        Shiryu shiryu = new Shiryu(RuleSet.CLASSIC);
+        seiya.wearArmorPiece();
+        Attack hit = new Attack("Classic Hit", 0, 1);
+
+        hit.execute(shiryu, seiya);
+
+        assertEquals(0, seiya.armorWorn());
+        assertTrue(seiya.isAlive());
+    }
+
+    @Test
+    void classicAttackAtFiveStripsTwoArmor() {
+        Player p1 = new Player("P1", new Shiryu(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player p2 = new Player("P2", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+
+        p2.character().wearArmorPiece();
+        p2.character().wearArmorPiece();
+
+        Attack attack = new Attack("Classic Hit", 0, 6, 6);
+        Defend defend = new Defend(0, 1);
+
+        TurnResolver.resolve(p1, attack, p2, defend);
+
+        assertEquals(0, p2.character().armorWorn());
+        assertTrue(p2.character().isAlive());
     }
 
     private Action simpleAggressiveChoice(Player self, Player opponent, java.util.List<Action> available) {
@@ -258,5 +373,24 @@ class BattleGameTest {
             }
         }
         return available.get(0);
+    }
+
+    private <T extends Action> T findAction(Player player, Class<T> actionType) {
+        for (Action action : player.availableActions()) {
+            if (actionType.isInstance(action)) {
+                return actionType.cast(action);
+            }
+        }
+        fail("Action not found: " + actionType.getSimpleName());
+        return actionType.cast(player.availableActions().get(0));
+    }
+
+    private boolean hasAction(Player player, Class<? extends Action> actionType) {
+        for (Action action : player.availableActions()) {
+            if (actionType.isInstance(action)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -16,7 +16,7 @@ public class BasicAiController implements Controller {
         Optional<Action> lethal = availableActions.stream()
             .filter(Attack.class::isInstance)
             .map(Attack.class::cast)
-            .filter(attack -> opponent.character().previewDamageTaken(attack.attackValue()) >= opponent.character().health())
+            .filter(attack -> opponent.character().wouldBeDefeatedBy(attack.attackValue()))
             .map(Action.class::cast)
             .findFirst();
         if (lethal.isPresent()) {
@@ -33,7 +33,7 @@ public class BasicAiController implements Controller {
         Optional<Action> wearArmor = availableActions.stream()
             .filter(WearArmor.class::isInstance)
             .findFirst();
-        if (wearArmor.isPresent() && self.character().health() <= self.character().maxHealth() / 2) {
+        if (wearArmor.isPresent() && shouldWearArmor(self)) {
             return wearArmor.get();
         }
 
@@ -41,5 +41,12 @@ public class BasicAiController implements Controller {
             .filter(Gather.class::isInstance)
             .findFirst()
             .orElse(availableActions.get(0));
+    }
+
+    private boolean shouldWearArmor(Player self) {
+        if (!self.character().ruleSet().tracksHealth()) {
+            return self.character().armorWorn() == 0;
+        }
+        return self.character().health() <= self.character().maxHealth() / 2;
     }
 }

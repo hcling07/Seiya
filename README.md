@@ -9,10 +9,15 @@ Use these commands from the project root:
 java -cp build/classes/java/main seiya.Main ui
 ```
 
+The UI start screen lets you choose:
+
+- Human character
+- AI character
+- Rule set: `Default` or `Classic`
+
 ## Other Modes
 
 `Main` also supports:
 
-- `hva` for human vs AI (default)
-- `hvh` for human vs human
-- `ava` for AI vs AI
+- `ava` for AI vs AI using default rules
+- `ava classic` for AI vs AI using classic rules

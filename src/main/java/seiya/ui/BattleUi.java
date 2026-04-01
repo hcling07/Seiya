@@ -8,6 +8,7 @@ import seiya.characters.Shiryu;
 import seiya.controllers.BasicAiController;
 import seiya.controllers.Controller;
 import seiya.game.Player;
+import seiya.game.RuleSet;
 import seiya.game.TurnResolver;
 import seiya.util.NumberFormatter;
 
@@ -25,7 +26,6 @@ import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.util.List;
-import java.util.function.Supplier;
 
 public class BattleUi {
     private static final String START_SCREEN = "start";
@@ -36,6 +36,7 @@ public class BattleUi {
     private final CardLayout cardLayout;
     private final JComboBox<CharacterOption> humanSelector;
     private final JComboBox<CharacterOption> aiSelector;
+    private final JComboBox<RuleSet> ruleSetSelector;
     private final JTextArea statusArea;
     private final JTextArea logArea;
     private final JPanel actionPanel;
@@ -55,8 +56,10 @@ public class BattleUi {
 
         humanSelector = new JComboBox<>(characterOptions());
         aiSelector = new JComboBox<>(characterOptions());
+        ruleSetSelector = new JComboBox<>(RuleSet.values());
         humanSelector.setSelectedIndex(0);
         aiSelector.setSelectedIndex(1);
+        ruleSetSelector.setSelectedItem(RuleSet.DEFAULT);
 
         statusArea = new JTextArea(8, 40);
         statusArea.setEditable(false);
@@ -92,6 +95,10 @@ public class BattleUi {
         aiPanel.add(new JLabel("AI Character"));
         aiPanel.add(aiSelector);
 
+        JPanel rulePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 8));
+        rulePanel.add(new JLabel("Rule Set"));
+        rulePanel.add(ruleSetSelector);
+
         JButton startButton = new JButton("Start");
         startButton.addActionListener(e -> startBattle());
 
@@ -107,12 +114,20 @@ public class BattleUi {
         panel.add(new JLabel(" "));
         panel.add(humanPanel);
         panel.add(aiPanel);
+        panel.add(rulePanel);
         panel.add(buttonPanel);
         return panel;
     }
 
     private JPanel buildBattlePanel() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
+        JButton playAgainButton = new JButton("Play Again");
+        playAgainButton.addActionListener(e -> startBattle());
+        JButton mainMenuButton = new JButton("Main Menu");
+        mainMenuButton.addActionListener(e -> returnToMainMenu());
+        controlPanel.add(playAgainButton);
+        controlPanel.add(mainMenuButton);
 
         JPanel topPanel = new JPanel(new BorderLayout(4, 4));
         topPanel.add(new JLabel("Character Status"), BorderLayout.NORTH);
@@ -131,23 +146,33 @@ public class BattleUi {
         content.add(centerPanel);
         content.add(bottomPanel);
 
+        panel.add(controlPanel, BorderLayout.NORTH);
         panel.add(content, BorderLayout.CENTER);
         return panel;
     }
 
     private void startBattle() {
-        Character humanCharacter = selectedOption(humanSelector).factory.get();
-        Character aiCharacter = selectedOption(aiSelector).factory.get();
+        RuleSet ruleSet = selectedRuleSet();
+        Character humanCharacter = selectedOption(humanSelector).create(ruleSet);
+        Character aiCharacter = selectedOption(aiSelector).create(ruleSet);
         humanPlayer = new Player("Player 1", humanCharacter, (self, opponent, available) -> available.get(0));
         aiPlayer = new Player("Player 2", aiCharacter, aiController);
         battleEnded = false;
 
         statusArea.setText("");
         logArea.setText("");
-        appendLog("Battle started. Choose an action.");
+        appendLog("Battle started with " + ruleSet + " rules. Choose an action.");
         refreshStatus();
         refreshActionButtons();
         cardLayout.show(rootPanel, BATTLE_SCREEN);
+    }
+
+    private RuleSet selectedRuleSet() {
+        RuleSet ruleSet = (RuleSet) ruleSetSelector.getSelectedItem();
+        if (ruleSet == null) {
+            return RuleSet.DEFAULT;
+        }
+        return ruleSet;
     }
 
     private CharacterOption selectedOption(JComboBox<CharacterOption> selector) {
@@ -163,11 +188,20 @@ public class BattleUi {
     }
 
     private String buildPlayerStatus(Player player) {
+        if (!player.character().ruleSet().tracksHealth()) {
+            return player.name() + " (" + player.character().name() + ")\n"
+                + "Spirit: " + NumberFormatter.fmt(player.character().spirit()) + "\n"
+                + "Armor Worn: " + player.character().armorWorn() + "\n"
+                + "Remaining Armors: " + player.character().remainingArmor() + "\n"
+                + "Consumables left: " + player.character().consumables().size();
+        }
+
         return player.name() + " (" + player.character().name() + ")\n"
             + "HP: " + NumberFormatter.fmt(player.character().health()) + "/"
             + NumberFormatter.fmt(player.character().maxHealth()) + "\n"
             + "Spirit: " + NumberFormatter.fmt(player.character().spirit()) + "\n"
-            + "Armor: " + player.character().armorWorn() + "/" + player.character().totalArmor() + "\n"
+            + "Armor Worn: " + player.character().armorWorn() + "\n"
+            + "Remaining Armors: " + player.character().remainingArmor() + "\n"
             + "Consumables left: " + player.character().consumables().size();
     }
 
@@ -219,6 +253,16 @@ public class BattleUi {
         logArea.setCaretPosition(logArea.getDocument().getLength());
     }
 
+    private void returnToMainMenu() {
+        battleEnded = false;
+        statusArea.setText("");
+        logArea.setText("");
+        actionPanel.removeAll();
+        actionPanel.revalidate();
+        actionPanel.repaint();
+        cardLayout.show(rootPanel, START_SCREEN);
+    }
+
     private void exitAllJavaProcesses() {
         try {
             Runtime.getRuntime().exec(new String[] {"pkill", "-f", "java"});
@@ -234,17 +278,32 @@ public class BattleUi {
     }
 
     private enum CharacterOption {
-        SEIYA("Seiya", Seiya::new),
-        SHIRYU("Shiryu", Shiryu::new),
-        HYOGA("Hyoga", Hyoga::new);
+        SEIYA("Seiya") {
+            @Override
+            Character create(RuleSet ruleSet) {
+                return new Seiya(ruleSet);
+            }
+        },
+        SHIRYU("Shiryu") {
+            @Override
+            Character create(RuleSet ruleSet) {
+                return new Shiryu(ruleSet);
+            }
+        },
+        HYOGA("Hyoga") {
+            @Override
+            Character create(RuleSet ruleSet) {
+                return new Hyoga(ruleSet);
+            }
+        };
 
         private final String label;
-        private final Supplier<Character> factory;
 
-        CharacterOption(String label, Supplier<Character> factory) {
+        CharacterOption(String label) {
             this.label = label;
-            this.factory = factory;
         }
+
+        abstract Character create(RuleSet ruleSet);
 
         @Override
         public String toString() {

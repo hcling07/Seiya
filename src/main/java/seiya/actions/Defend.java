@@ -22,6 +22,10 @@ public class Defend extends Action {
     @Override
     public String execute(Character actor, Character target) {
         actor.activateDefense(damageReductionPercent);
+        if (damageReductionPercent == 0) {
+            return actor.name() + " is defending with defense value "
+                + defenseValue() + ".";
+        }
         return actor.name() + " is defending and will reduce incoming damage by "
             + damageReductionPercent + "% on the next hit.";
     }

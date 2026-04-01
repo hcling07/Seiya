@@ -53,6 +53,14 @@ public class BattleGame {
     }
 
     private String statusLine() {
+        if (!playerOne.character().ruleSet().tracksHealth()) {
+            return playerOne.name() + " Spirit=" + NumberFormatter.fmt(playerOne.character().spirit())
+                + ", Armor=" + playerOne.character().armorWorn()
+                + " | "
+                + playerTwo.name() + " Spirit=" + NumberFormatter.fmt(playerTwo.character().spirit())
+                + ", Armor=" + playerTwo.character().armorWorn();
+        }
+
         return playerOne.name() + " HP=" + NumberFormatter.fmt(playerOne.character().health())
             + ", Spirit=" + NumberFormatter.fmt(playerOne.character().spirit())
             + ", Armor=" + playerOne.character().armorWorn()
@@ -70,13 +78,24 @@ public class BattleGame {
             return playerTwo;
         }
 
-        double hpOne = playerOne.character().health();
-        double hpTwo = playerTwo.character().health();
-        if (hpOne > hpTwo) {
-            return playerOne;
-        }
-        if (hpTwo > hpOne) {
-            return playerTwo;
+        if (playerOne.character().ruleSet().tracksHealth()) {
+            double hpOne = playerOne.character().health();
+            double hpTwo = playerTwo.character().health();
+            if (hpOne > hpTwo) {
+                return playerOne;
+            }
+            if (hpTwo > hpOne) {
+                return playerTwo;
+            }
+        } else {
+            int armorOne = playerOne.character().armorWorn();
+            int armorTwo = playerTwo.character().armorWorn();
+            if (armorOne > armorTwo) {
+                return playerOne;
+            }
+            if (armorTwo > armorOne) {
+                return playerTwo;
+            }
         }
 
         double spiritOne = playerOne.character().spirit();
