@@ -11,6 +11,10 @@ import seiya.characters.Hyoga;
 import seiya.characters.Seiya;
 import seiya.characters.Shiryu;
 import seiya.controllers.BasicAiController;
+import seiya.controllers.rules.DefendAgainstLikelyAttackRule;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -364,6 +368,123 @@ class BattleGameTest {
 
         assertEquals(0, p2.character().armorWorn());
         assertTrue(p2.character().isAlive());
+    }
+
+    @Test
+    void basicAiDoesNotDefendWhenOpponentCannotAttack() {
+        Player player = new Player("P1", new Seiya(), new BasicAiController());
+        Player opponent = new Player("P2", new Hyoga(), new BasicAiController());
+
+        Action action = player.chooseAction(opponent);
+
+        assertTrue(action instanceof Gather);
+    }
+
+    @Test
+    void basicAiDoesNotDefendWhenProbabilityRollMissesAttackLikelihood() {
+        Player player = new Player(
+            "P1",
+            new Seiya(),
+            new BasicAiController(Arrays.asList(new DefendAgainstLikelyAttackRule(() -> 0.40)))
+        );
+        Player opponent = new Player("P2", new Hyoga(), new BasicAiController());
+        opponent.character().gainSpirit(4.0);
+
+        Action action = player.chooseAction(opponent);
+
+        assertTrue(action instanceof Gather);
+    }
+
+    @Test
+    void basicAiDefendsWhenProbabilityRollHitsAttackLikelihood() {
+        Player player = new Player(
+            "P1",
+            new Seiya(),
+            new BasicAiController(Arrays.asList(new DefendAgainstLikelyAttackRule(() -> 0.39)))
+        );
+        Player opponent = new Player("P2", new Hyoga(), new BasicAiController());
+        opponent.character().gainSpirit(4.0);
+
+        Action action = player.chooseAction(opponent);
+
+        assertTrue(action instanceof Defend);
+    }
+
+    @Test
+    void basicAiDefendRuleCanBeDisabled() {
+        Player player = new Player("P1", new Seiya(), new BasicAiController(Collections.emptyList()));
+        Player opponent = new Player("P2", new Hyoga(), new BasicAiController());
+        opponent.character().gainSpirit(2.0);
+
+        Action action = player.chooseAction(opponent);
+
+        assertTrue(action instanceof Gather);
+    }
+
+    @Test
+    void basicAiDoesNotRepeatDefendWhileDefenseIsActive() {
+        Player player = new Player(
+            "P1",
+            new Seiya(),
+            new BasicAiController(Arrays.asList(new DefendAgainstLikelyAttackRule(() -> 0.0)))
+        );
+        Player opponent = new Player("P2", new Hyoga(), new BasicAiController());
+        opponent.character().gainSpirit(4.0);
+        new Defend(50).execute(player.character(), opponent.character());
+
+        Action action = player.chooseAction(opponent);
+
+        assertTrue(action instanceof Gather);
+    }
+
+    @Test
+    void classicAiWearsArmorInsteadOfDefendingWhenThreatened() {
+        Player player = new Player(
+            "P1",
+            new Seiya(RuleSet.CLASSIC),
+            new BasicAiController(Arrays.asList(new DefendAgainstLikelyAttackRule(() -> 0.0)))
+        );
+        Player opponent = new Player("P2", new Shiryu(RuleSet.CLASSIC), new BasicAiController());
+        player.recordTurn();
+        player.character().gainSpirit(1.0);
+        opponent.character().gainSpirit(1.0);
+
+        Action action = player.chooseAction(opponent);
+
+        assertTrue(action instanceof WearArmor);
+    }
+
+    @Test
+    void classicAiDefendsWhenThreatenedAndArmorIsUnavailable() {
+        Player player = new Player(
+            "P1",
+            new Hyoga(RuleSet.CLASSIC),
+            new BasicAiController(Arrays.asList(new DefendAgainstLikelyAttackRule(() -> 0.0)))
+        );
+        Player opponent = new Player("P2", new Shiryu(RuleSet.CLASSIC), new BasicAiController());
+        player.recordTurn();
+        player.character().wearArmorPiece();
+        player.character().wearArmorPiece();
+        opponent.character().gainSpirit(1.0);
+
+        Action action = player.chooseAction(opponent);
+
+        assertTrue(action instanceof Defend);
+    }
+
+    @Test
+    void basicAiCanForceDefendWithLowProbabilityRoll() {
+        Player player = new Player(
+            "P1",
+            new Seiya(),
+            new BasicAiController(Arrays.asList(new DefendAgainstLikelyAttackRule(() -> 0.0)))
+        );
+        Player opponent = new Player("P2", new Hyoga(), new BasicAiController());
+        opponent.character().gainSpirit(2.0);
+
+        Action action = player.chooseAction(opponent);
+
+        assertTrue(action instanceof Defend);
     }
 
     private Action simpleAggressiveChoice(Player self, Player opponent, java.util.List<Action> available) {
