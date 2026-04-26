@@ -13,7 +13,7 @@ public abstract class Character {
     private final String name;
     private final double maxHealth;
     private double health;
-    private final int totalArmor;
+    private int totalArmor;
     private int armorWorn;
     private int armorUsed;
     private boolean consumableUnlocked;
@@ -125,6 +125,22 @@ public abstract class Character {
         consumableUnlocked = true;
     }
 
+    public void addAvailableArmor(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        totalArmor += amount;
+    }
+
+    public int removeAvailableArmor(int amount) {
+        if (amount <= 0) {
+            return 0;
+        }
+        int removed = Math.min(amount, remainingArmor());
+        totalArmor -= removed;
+        return removed;
+    }
+
     public void breakArmorPiece() {
         if (armorWorn <= 0) {
             return;
@@ -193,6 +209,10 @@ public abstract class Character {
 
     public boolean hasConsumable(ConsumableAttack consumable) {
         return consumables.contains(consumable);
+    }
+
+    public void addConsumable(ConsumableAttack consumable) {
+        consumables.add(consumable);
     }
 
     public void consume(ConsumableAttack consumable) {

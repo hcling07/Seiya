@@ -2,6 +2,7 @@ package seiya.characters;
 
 import seiya.actions.Attack;
 import seiya.actions.ConsumableAttack;
+import seiya.actions.FreezingCoffin;
 import seiya.game.RuleSet;
 
 import java.util.Arrays;
@@ -40,7 +41,10 @@ public class Hyoga extends Character {
 
     private static List<ConsumableAttack> consumables(RuleSet ruleSet) {
         if (ruleSet == RuleSet.CLASSIC) {
-            return Arrays.asList();
+            return Arrays.asList(
+                new FreezingCoffin(),
+                new ConsumableAttack("Aurora Execution", 0, 4.5, 4.5)
+            );
         }
 
         return Arrays.asList(

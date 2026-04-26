@@ -1,6 +1,7 @@
 package seiya.game;
 
 import seiya.actions.Action;
+import seiya.actions.ActionSuppression;
 import seiya.actions.Attack;
 import seiya.characters.Character;
 import seiya.util.NumberFormatter;
@@ -16,11 +17,15 @@ public final class TurnResolver {
         List<String> logs = new ArrayList<>();
         boolean oneBlocked = actionOne.attackValue() <= actionTwo.defenseValue();
         boolean twoBlocked = actionTwo.attackValue() <= actionOne.defenseValue();
+        ActionSuppression oneSuppressesTwo = actionOne.suppresses(playerOne, playerTwo, actionTwo);
+        ActionSuppression twoSuppressesOne = actionTwo.suppresses(playerTwo, playerOne, actionOne);
 
         logs.add(describeAction(playerOne, actionOne, playerTwo, actionTwo, oneBlocked));
         logs.add(describeAction(playerTwo, actionTwo, playerOne, actionOne, twoBlocked));
-        logs.add(playerOne.name() + ": " + executeAction(playerOne, actionOne, playerTwo, actionTwo, oneBlocked));
-        logs.add(playerTwo.name() + ": " + executeAction(playerTwo, actionTwo, playerOne, actionOne, twoBlocked));
+        logs.add(playerOne.name() + ": " + executeAction(playerOne, actionOne, playerTwo, actionTwo, oneBlocked, twoSuppressesOne));
+        addSuppressionLog(logs, playerOne, oneSuppressesTwo);
+        logs.add(playerTwo.name() + ": " + executeAction(playerTwo, actionTwo, playerOne, actionOne, twoBlocked, oneSuppressesTwo));
+        addSuppressionLog(logs, playerTwo, twoSuppressesOne);
         return logs;
     }
 
@@ -48,7 +53,19 @@ public final class TurnResolver {
             + ", projectedDamage=" + NumberFormatter.fmt(projectedDamage) + "]";
     }
 
-    private static String executeAction(Player actor, Action action, Player target, Action opposingAction, boolean blockedByDefense) {
+    private static String executeAction(
+        Player actor,
+        Action action,
+        Player target,
+        Action opposingAction,
+        boolean blockedByDefense,
+        ActionSuppression suppression
+    ) {
+        if (suppression != null) {
+            actor.recordTurn();
+            return action.name() + " was sealed by " + suppression.sourceAction().name() + ".";
+        }
+
         String result;
         if (action instanceof Attack) {
             result = ((Attack) action).executeForClash(
@@ -62,5 +79,11 @@ public final class TurnResolver {
         }
         actor.recordTurn();
         return result;
+    }
+
+    private static void addSuppressionLog(List<String> logs, Player actor, ActionSuppression suppression) {
+        if (suppression != null) {
+            logs.add(actor.name() + ": " + suppression.resultLog());
+        }
     }
 }

@@ -21,3 +21,18 @@ The UI start screen lets you choose:
 
 - `ava` for AI vs AI using default rules
 - `ava classic` for AI vs AI using classic rules
+
+## Balance Simulation
+
+Run the classic-rule character balance simulation from the project root:
+
+```bash
+./gradlew -q testClasses
+java -cp build/classes/java/main:build/classes/java/test seiya.sim.ClassicBalanceSimulation
+```
+
+Optionally pass the number of matches per ordered matchup:
+
+```bash
+java -cp build/classes/java/main:build/classes/java/test seiya.sim.ClassicBalanceSimulation 5000
+```

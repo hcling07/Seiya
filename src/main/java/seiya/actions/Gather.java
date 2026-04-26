@@ -10,6 +10,10 @@ public class Gather extends Action {
         this.spiritGain = spiritGain;
     }
 
+    public double spiritGain() {
+        return spiritGain;
+    }
+
     @Override
     public boolean canExecute(Character actor) {
         return true;

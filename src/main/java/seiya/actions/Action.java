@@ -1,6 +1,7 @@
 package seiya.actions;
 
 import seiya.characters.Character;
+import seiya.game.Player;
 
 public abstract class Action {
     private final String name;
@@ -34,6 +35,10 @@ public abstract class Action {
     }
 
     public abstract boolean canExecute(Character actor);
+
+    public ActionSuppression suppresses(Player actor, Player target, Action opposingAction) {
+        return null;
+    }
 
     public abstract String execute(Character actor, Character target);
 }

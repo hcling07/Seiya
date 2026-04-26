@@ -13,6 +13,10 @@ public class WearArmor extends Action {
         super("Wear Armor", 0.0, defenseValue);
     }
 
+    public int armorPieces() {
+        return 1;
+    }
+
     @Override
     public boolean canExecute(Character actor) {
         return actor.canWearArmor();
@@ -24,7 +28,9 @@ public class WearArmor extends Action {
             return actor.name() + " cannot wear more armor.";
         }
 
-        actor.wearArmorPiece();
+        for (int i = 0; i < armorPieces(); i++) {
+            actor.wearArmorPiece();
+        }
         return actor.name() + " wore one armor piece (" + actor.armorWorn() + "/" + actor.totalArmor() + ").";
     }
 }

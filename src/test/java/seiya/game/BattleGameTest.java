@@ -5,6 +5,7 @@ import seiya.actions.Action;
 import seiya.actions.Attack;
 import seiya.actions.ConsumableAttack;
 import seiya.actions.Defend;
+import seiya.actions.FreezingCoffin;
 import seiya.actions.Gather;
 import seiya.actions.WearArmor;
 import seiya.characters.Hyoga;
@@ -330,6 +331,161 @@ class BattleGameTest {
     }
 
     @Test
+    void classicHyogaHasFreezingCoffinAfterArmorUnlock() {
+        Hyoga hyoga = new Hyoga(RuleSet.CLASSIC);
+        ConsumableAttack consumable = hyoga.consumables().get(0);
+
+        assertTrue(consumable instanceof FreezingCoffin);
+        assertFalse(consumable.canExecute(hyoga));
+
+        hyoga.wearArmorPiece();
+
+        assertTrue(consumable.canExecute(hyoga));
+    }
+
+    @Test
+    void classicHyogaHasAuroraExecutionAfterArmorUnlock() {
+        Hyoga hyoga = new Hyoga(RuleSet.CLASSIC);
+        ConsumableAttack consumable = hyoga.consumables().get(1);
+
+        assertEquals("Aurora Execution", consumable.name());
+        assertEquals(0.0, consumable.spiritCost(), DELTA);
+        assertEquals(4.5, consumable.attackValue(), DELTA);
+        assertEquals(4.5, consumable.defenseValue(), DELTA);
+        assertFalse(consumable.canExecute(hyoga));
+
+        hyoga.wearArmorPiece();
+
+        assertTrue(consumable.canExecute(hyoga));
+    }
+
+    @Test
+    void freezingCoffinStealsGatherSpirit() {
+        Player hyoga = new Player("Hyoga", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player seiya = new Player("Seiya", new Seiya(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        hyoga.character().wearArmorPiece();
+        FreezingCoffin freezingCoffin = (FreezingCoffin) hyoga.character().consumables().get(0);
+
+        TurnResolver.resolve(hyoga, freezingCoffin, seiya, new Gather(1));
+
+        assertEquals(1.0, hyoga.character().spirit(), DELTA);
+        assertEquals(0.0, seiya.character().spirit(), DELTA);
+        assertFalse(hyoga.character().hasConsumable(freezingCoffin));
+    }
+
+    @Test
+    void freezingCoffinStealsWearArmorAsAvailableArmor() {
+        Player hyoga = new Player("Hyoga", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player shiryu = new Player("Shiryu", new Shiryu(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        hyoga.character().wearArmorPiece();
+        FreezingCoffin freezingCoffin = (FreezingCoffin) hyoga.character().consumables().get(0);
+
+        TurnResolver.resolve(hyoga, freezingCoffin, shiryu, new WearArmor(5));
+
+        assertEquals(3, hyoga.character().totalArmor());
+        assertEquals(2, hyoga.character().remainingArmor());
+        assertEquals(1, shiryu.character().remainingArmor());
+        assertEquals(0, shiryu.character().armorWorn());
+        assertFalse(hyoga.character().hasConsumable(freezingCoffin));
+    }
+
+    @Test
+    void freezingCoffinStealsBlockedAttackAsZeroCostConsumable() {
+        Player hyoga = new Player("Hyoga", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player seiya = new Player("Seiya", new Seiya(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        hyoga.character().wearArmorPiece();
+        seiya.character().gainSpirit(2.0);
+        FreezingCoffin freezingCoffin = (FreezingCoffin) hyoga.character().consumables().get(0);
+        Attack cometFist = seiya.character().attackMoves().get(1);
+
+        TurnResolver.resolve(hyoga, freezingCoffin, seiya, cometFist);
+
+        ConsumableAttack stolen = findConsumable(hyoga, "Pegasus Comet Fist");
+        assertEquals("Pegasus Comet Fist", stolen.name());
+        assertEquals(0.0, stolen.spiritCost(), DELTA);
+        assertEquals(cometFist.attackValue(), stolen.attackValue(), DELTA);
+        assertEquals(cometFist.defenseValue(), stolen.defenseValue(), DELTA);
+        assertEquals(2.0, seiya.character().spirit(), DELTA);
+        assertEquals(1, hyoga.character().armorWorn());
+        assertFalse(hyoga.character().hasConsumable(freezingCoffin));
+    }
+
+    @Test
+    void freezingCoffinStealsConsumableAttackFromOpponentInventory() {
+        Player hyoga = new Player("Hyoga", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player seiya = new Player("Seiya", new Seiya(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        hyoga.character().wearArmorPiece();
+        seiya.character().wearArmorPiece();
+        FreezingCoffin freezingCoffin = (FreezingCoffin) hyoga.character().consumables().get(0);
+        ConsumableAttack dagger = seiya.character().consumables().get(0);
+
+        TurnResolver.resolve(hyoga, freezingCoffin, seiya, dagger);
+
+        ConsumableAttack stolen = findConsumable(hyoga, "Athena Dagger");
+        assertEquals("Athena Dagger", stolen.name());
+        assertEquals(0.0, stolen.spiritCost(), DELTA);
+        assertEquals(dagger.attackValue(), stolen.attackValue(), DELTA);
+        assertEquals(dagger.defenseValue(), stolen.defenseValue(), DELTA);
+        assertFalse(seiya.character().hasConsumable(dagger));
+        assertFalse(hyoga.character().hasConsumable(freezingCoffin));
+    }
+
+    @Test
+    void freezingCoffinBlocksAttackAtExactlyFive() {
+        Player hyoga = new Player("Hyoga", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player seiya = new Player("Seiya", new Seiya(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        hyoga.character().wearArmorPiece();
+        FreezingCoffin freezingCoffin = (FreezingCoffin) hyoga.character().consumables().get(0);
+
+        TurnResolver.resolve(hyoga, freezingCoffin, seiya, new Attack("Five Point Attack", 0, 5, 5));
+
+        assertEquals(1, hyoga.character().armorWorn());
+        assertTrue(hyoga.character().isAlive());
+        assertEquals("Five Point Attack", findConsumable(hyoga, "Five Point Attack").name());
+    }
+
+    @Test
+    void freezingCoffinDoesNotStealAttackAboveFive() {
+        Player hyoga = new Player("Hyoga", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player shiryu = new Player("Shiryu", new Shiryu(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        hyoga.character().wearArmorPiece();
+        FreezingCoffin freezingCoffin = (FreezingCoffin) hyoga.character().consumables().get(0);
+
+        TurnResolver.resolve(hyoga, freezingCoffin, shiryu, new Attack("Six Point Attack", 0, 6, 6));
+
+        assertEquals(0, hyoga.character().armorWorn());
+        assertFalse(hyoga.character().hasConsumable(freezingCoffin));
+        assertTrue(hasConsumable(hyoga, "Aurora Execution"));
+    }
+
+    @Test
+    void freezingCoffinDoesNotStealDefend() {
+        Player hyoga = new Player("Hyoga", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player shiryu = new Player("Shiryu", new Shiryu(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        hyoga.character().wearArmorPiece();
+        FreezingCoffin freezingCoffin = (FreezingCoffin) hyoga.character().consumables().get(0);
+
+        TurnResolver.resolve(hyoga, freezingCoffin, shiryu, new Defend(0, 5));
+
+        assertFalse(hyoga.character().hasConsumable(freezingCoffin));
+        assertTrue(hasConsumable(hyoga, "Aurora Execution"));
+    }
+
+    @Test
+    void freezingCoffinDoesNotPreventOpponentDefend() {
+        Player hyoga = new Player("Hyoga", new Hyoga(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        Player shiryu = new Player("Shiryu", new Shiryu(RuleSet.CLASSIC), this::simpleAggressiveChoice);
+        hyoga.character().wearArmorPiece();
+        FreezingCoffin freezingCoffin = (FreezingCoffin) hyoga.character().consumables().get(0);
+
+        TurnResolver.resolve(hyoga, freezingCoffin, shiryu, new Defend(50, 5));
+
+        assertEquals(50, shiryu.character().defendPercent());
+        assertFalse(hyoga.character().hasConsumable(freezingCoffin));
+        assertTrue(hasConsumable(hyoga, "Aurora Execution"));
+    }
+
+    @Test
     void classicAttackWithoutArmorDefeatsCharacter() {
         Seiya seiya = new Seiya(RuleSet.CLASSIC);
         Shiryu shiryu = new Shiryu(RuleSet.CLASSIC);
@@ -465,6 +621,7 @@ class BattleGameTest {
         player.recordTurn();
         player.character().wearArmorPiece();
         player.character().wearArmorPiece();
+        opponent.character().wearArmorPiece();
         opponent.character().gainSpirit(1.0);
 
         Action action = player.chooseAction(opponent);
@@ -509,6 +666,25 @@ class BattleGameTest {
     private boolean hasAction(Player player, Class<? extends Action> actionType) {
         for (Action action : player.availableActions()) {
             if (actionType.isInstance(action)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private ConsumableAttack findConsumable(Player player, String name) {
+        for (ConsumableAttack consumable : player.character().consumables()) {
+            if (consumable.name().equals(name)) {
+                return consumable;
+            }
+        }
+        fail("Consumable not found: " + name);
+        return player.character().consumables().get(0);
+    }
+
+    private boolean hasConsumable(Player player, String name) {
+        for (ConsumableAttack consumable : player.character().consumables()) {
+            if (consumable.name().equals(name)) {
                 return true;
             }
         }
