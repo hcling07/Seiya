@@ -28,19 +28,27 @@ public class Shiryu extends Character {
         if (ruleSet == RuleSet.CLASSIC) {
             return Arrays.asList(
                 new Attack("Rozan Rising Dragon", 1, 1, 1),
-                new Attack("Rozan Dragon Flight", 2, 2, 6)
+                new Attack("Rozan Dragon Flight", 2, 2, 6),
+                new Attack("Rozan Hundred Dragon", 3, 3, 3),
+                new Attack("Rozan Hyper Dragon", 4, 1, 10),
+                new Attack("Cosmo Explosion", 5, 5, 5),
+                new Attack("Rozan Dragon Roar", 6, 6, 6)
             );
         }
 
+        // TODO: Add Shiryu's new classic attacks to the default rule set once their default-scale values are decided.
         return Arrays.asList(
-            new Attack("Rozan Rising Dragon", 3, 10),
-            new Attack("Rozan Dragon Flight", 5, 14)
+            new Attack("Rozan Rising Dragon", 2, 9),
+            new Attack("Rozan Dragon Flight", 3, 13),
+            new Attack("Cosmo Explosion", 5, 15)
         );
     }
 
     private static List<ConsumableAttack> consumables(RuleSet ruleSet) {
         if (ruleSet == RuleSet.CLASSIC) {
-            return Arrays.asList();
+            return Arrays.asList(
+                new ConsumableAttack("Dragon Shield Shard", 0, 4.5, 4.5)
+            );
         }
 
         return Arrays.asList(

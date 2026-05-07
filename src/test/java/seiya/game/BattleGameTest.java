@@ -291,6 +291,29 @@ class BattleGameTest {
     }
 
     @Test
+    void charactersHaveNewAttackMoves() {
+        assertAttack(new Seiya(RuleSet.CLASSIC), "Pegasus Lightning Kick", 3.0, 3.0, 3.0);
+        assertAttack(new Seiya(RuleSet.CLASSIC), "Cosmo Explosion", 5.0, 5.0, 5.0);
+        assertAttack(new Hyoga(RuleSet.CLASSIC), "Kholodnyi Smerch", 2.0, 2.0, 2.0);
+        assertAttack(new Hyoga(RuleSet.CLASSIC), "Cosmo Explosion", 5.0, 5.0, 5.0);
+        assertAttack(new Hyoga(RuleSet.CLASSIC), "Aurora Strike", 6.0, 6.0, 6.0);
+        assertAttack(new Hyoga(RuleSet.CLASSIC), "Aurora Lightning", 8.0, 8.0, 8.0);
+        assertAttack(new Hyoga(RuleSet.CLASSIC), "Aurora Execution", 12.0, 12.0, 12.0);
+        assertAttack(new Shiryu(RuleSet.CLASSIC), "Rozan Rising Dragon", 1.0, 1.0, 1.0);
+        assertAttack(new Shiryu(RuleSet.CLASSIC), "Rozan Hundred Dragon", 3.0, 3.0, 3.0);
+        assertAttack(new Shiryu(RuleSet.CLASSIC), "Rozan Hyper Dragon", 4.0, 1.0, 10.0);
+        assertAttack(new Shiryu(RuleSet.CLASSIC), "Cosmo Explosion", 5.0, 5.0, 5.0);
+        assertAttack(new Shiryu(RuleSet.CLASSIC), "Rozan Dragon Roar", 6.0, 6.0, 6.0);
+    }
+
+    @Test
+    void defaultCosmoExplosionHasMeaningfulPowerAcrossCharacters() {
+        assertAttack(new Seiya(), "Cosmo Explosion", 5.0, 15.0, 15.0);
+        assertAttack(new Hyoga(), "Cosmo Explosion", 5.0, 15.0, 15.0);
+        assertAttack(new Shiryu(), "Cosmo Explosion", 5.0, 15.0, 15.0);
+    }
+
+    @Test
     void classicDefendAndWearArmorUseFiveDefenseValue() {
         Player player = new Player("P1", new Seiya(RuleSet.CLASSIC), new BasicAiController());
         Player opponent = new Player("P2", new Shiryu(RuleSet.CLASSIC), new BasicAiController());
@@ -357,6 +380,22 @@ class BattleGameTest {
         hyoga.wearArmorPiece();
 
         assertTrue(consumable.canExecute(hyoga));
+    }
+
+    @Test
+    void classicShiryuHasDragonShieldShardAfterArmorUnlock() {
+        Shiryu shiryu = new Shiryu(RuleSet.CLASSIC);
+        ConsumableAttack consumable = shiryu.consumables().get(0);
+
+        assertEquals("Dragon Shield Shard", consumable.name());
+        assertEquals(0.0, consumable.spiritCost(), DELTA);
+        assertEquals(4.5, consumable.attackValue(), DELTA);
+        assertEquals(4.5, consumable.defenseValue(), DELTA);
+        assertFalse(consumable.canExecute(shiryu));
+
+        shiryu.wearArmorPiece();
+
+        assertTrue(consumable.canExecute(shiryu));
     }
 
     @Test
@@ -670,6 +709,18 @@ class BattleGameTest {
             }
         }
         return false;
+    }
+
+    private void assertAttack(seiya.characters.Character character, String name, double spiritCost, double attackValue, double defenseValue) {
+        for (Attack attack : character.attackMoves()) {
+            if (attack.name().equals(name)) {
+                assertEquals(spiritCost, attack.spiritCost(), DELTA);
+                assertEquals(attackValue, attack.attackValue(), DELTA);
+                assertEquals(defenseValue, attack.defenseValue(), DELTA);
+                return;
+            }
+        }
+        fail("Attack not found: " + name);
     }
 
     private ConsumableAttack findConsumable(Player player, String name) {

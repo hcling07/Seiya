@@ -29,13 +29,20 @@ public class Hyoga extends Character {
         if (ruleSet == RuleSet.CLASSIC) {
             return Arrays.asList(
                 new Attack("Diamond Dust", 0.5, 0.5, 0.5),
-                new Attack("Aurora Thunder Attack", 1, 1, 1)
+                new Attack("Aurora Thunder Attack", 1, 1, 1),
+                new Attack("Kholodnyi Smerch", 2, 2, 2),
+                new Attack("Cosmo Explosion", 5, 5, 5),
+                new Attack("Aurora Strike", 6, 6, 6),
+                new Attack("Aurora Lightning", 8, 8, 8),
+                new Attack("Aurora Execution", 12, 12, 12)
             );
         }
 
+        // TODO: Add Kholodnyi Smerch and Hyoga's higher-cost attacks to the default rule set once their default-scale values are decided.
         return Arrays.asList(
             new Attack("Diamond Dust", 2, 8, 6),
-            new Attack("Aurora Thunder Attack", 4, 11, 8)
+            new Attack("Aurora Thunder Attack", 4, 11, 8),
+            new Attack("Cosmo Explosion", 5, 15)
         );
     }
 

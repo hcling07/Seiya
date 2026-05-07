@@ -28,13 +28,17 @@ public class Seiya extends Character {
         if (ruleSet == RuleSet.CLASSIC) {
             return Arrays.asList(
                 new Attack("Pegasus Meteor Fist", 1, 1, 1),
-                new Attack("Pegasus Comet Fist", 2, 2, 2)
+                new Attack("Pegasus Comet Fist", 2, 2, 2),
+                new Attack("Pegasus Lightning Kick", 3, 3, 3),
+                new Attack("Cosmo Explosion", 5, 5, 5)
             );
         }
 
         return Arrays.asList(
             new Attack("Pegasus Meteor Fist", 2, 7),
-            new Attack("Pegasus Comet Fist", 4, 12)
+            new Attack("Pegasus Comet Fist", 3, 9),
+            new Attack("Pegasus Lightning Kick", 4, 12),
+            new Attack("Cosmo Explosion", 5, 15)
         );
     }
 
