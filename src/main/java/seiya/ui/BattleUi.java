@@ -18,14 +18,21 @@ import seiya.game.TurnResolver;
 import seiya.util.NumberFormatter;
 
 import javax.swing.BoxLayout;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -34,13 +41,28 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import org.w3c.dom.Node;
 
 public class BattleUi {
     private static final String START_SCREEN = "start";
     private static final String BATTLE_SCREEN = "battle";
     private static final Color WINNER_BACKGROUND = new Color(220, 245, 220);
+    private static final Color SPRITE_BACKGROUND = new Color(245, 245, 245);
+    private static final Color SPRITE_BORDER = new Color(180, 180, 180);
     private static final Dimension ACTION_SCROLL_SIZE = new Dimension(480, 120);
+    private static final Dimension SPRITE_SIZE = new Dimension(156, 156);
+    private static final int SPRITE_IMAGE_SIZE = 138;
+    private static final Map<String, ImageIcon> ICON_CACHE = new HashMap<>();
 
     private final JFrame frame;
     private final JPanel rootPanel;
@@ -49,6 +71,8 @@ public class BattleUi {
     private final JComboBox<CharacterOption> aiSelector;
     private final JComboBox<OpponentMode> opponentModeSelector;
     private final JComboBox<RuleSet> ruleSetSelector;
+    private final JLabel humanPreviewLabel;
+    private final JLabel aiPreviewLabel;
     private final JTextArea playerOneStatusArea;
     private final JTextArea playerTwoStatusArea;
     private final Color originalStatusBackground;
@@ -59,6 +83,8 @@ public class BattleUi {
     private final JPanel playerTwoColumnPanel;
     private final JPanel playerOneStatusPanel;
     private final JPanel playerTwoStatusPanel;
+    private final JLabel playerOneSpriteLabel;
+    private final JLabel playerTwoSpriteLabel;
     private final JLabel playerOneLockMessageLabel;
     private final JLabel playerTwoLockMessageLabel;
 
@@ -69,6 +95,10 @@ public class BattleUi {
     private Action pendingPlayerOneAction;
     private Action pendingPlayerTwoAction;
     private boolean battleEnded;
+    private Timer playerOneFightTimer;
+    private Timer playerTwoFightTimer;
+    private Timer playerOneDeathTimer;
+    private Timer playerTwoDeathTimer;
 
     private BattleUi() {
         frame = new JFrame("Seiya Battle");
@@ -86,6 +116,10 @@ public class BattleUi {
         aiSelector.setSelectedIndex(1);
         opponentModeSelector.setSelectedItem(OpponentMode.AI);
         ruleSetSelector.setSelectedItem(RuleSet.DEFAULT);
+        humanPreviewLabel = buildSpriteLabel();
+        aiPreviewLabel = buildSpriteLabel();
+        humanSelector.addActionListener(e -> refreshStartPreviews());
+        aiSelector.addActionListener(e -> refreshStartPreviews());
 
         playerOneStatusArea = new JTextArea(6, 24);
         playerOneStatusArea.setEditable(false);
@@ -98,14 +132,17 @@ public class BattleUi {
         playerTwoActionPanel = new JPanel(new GridLayout(1, 3, 8, 8));
         playerOneLockMessageLabel = new JLabel(" ");
         playerTwoLockMessageLabel = new JLabel(" ");
+        playerOneSpriteLabel = buildSpriteLabel();
+        playerTwoSpriteLabel = buildSpriteLabel();
         playerOneStatusPanel = buildStatusPanel("Player 1", playerOneStatusArea);
         playerTwoStatusPanel = buildStatusPanel("Player 2", playerTwoStatusArea);
-        playerOneColumnPanel = buildPlayerColumn("Player 1", playerOneStatusPanel, playerOneActionPanel, playerOneLockMessageLabel);
-        playerTwoColumnPanel = buildPlayerColumn("Player 2", playerTwoStatusPanel, playerTwoActionPanel, playerTwoLockMessageLabel);
+        playerOneColumnPanel = buildPlayerColumn("Player 1", playerOneSpriteLabel, playerOneStatusPanel, playerOneActionPanel, playerOneLockMessageLabel);
+        playerTwoColumnPanel = buildPlayerColumn("Player 2", playerTwoSpriteLabel, playerTwoStatusPanel, playerTwoActionPanel, playerTwoLockMessageLabel);
 
         rootPanel.add(buildStartPanel(), START_SCREEN);
         rootPanel.add(buildBattlePanel(), BATTLE_SCREEN);
         frame.setContentPane(rootPanel);
+        refreshStartPreviews();
         cardLayout.show(rootPanel, START_SCREEN);
     }
 
@@ -126,6 +163,7 @@ public class BattleUi {
         JPanel humanPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 8));
         humanPanel.add(new JLabel("Player 1 Character"));
         humanPanel.add(humanSelector);
+        humanPanel.add(humanPreviewLabel);
 
         JPanel opponentModePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 8));
         opponentModePanel.add(new JLabel("Opponent Type"));
@@ -134,6 +172,7 @@ public class BattleUi {
         JPanel aiPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 8));
         aiPanel.add(new JLabel("Player 2 Character"));
         aiPanel.add(aiSelector);
+        aiPanel.add(aiPreviewLabel);
 
         JPanel rulePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 8));
         rulePanel.add(new JLabel("Rule Set"));
@@ -192,7 +231,7 @@ public class BattleUi {
         return statusPanel;
     }
 
-    private JPanel buildPlayerColumn(String title, JPanel statusPanel, JPanel actionPanel, JLabel lockMessageLabel) {
+    private JPanel buildPlayerColumn(String title, JLabel spriteLabel, JPanel statusPanel, JPanel actionPanel, JLabel lockMessageLabel) {
         JPanel panel = new JPanel(new BorderLayout(4, 4));
 
         JPanel actionsPanel = new JPanel(new BorderLayout(4, 4));
@@ -204,6 +243,7 @@ public class BattleUi {
 
         panel.add(actionsPanel, BorderLayout.NORTH);
         panel.add(statusPanel, BorderLayout.CENTER);
+        panel.add(spriteLabel, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -221,6 +261,7 @@ public class BattleUi {
         pendingPlayerOneAction = null;
         pendingPlayerTwoAction = null;
         battleEnded = false;
+        stopSpriteAnimations();
 
         playerOneStatusArea.setText("");
         playerTwoStatusArea.setText("");
@@ -230,6 +271,7 @@ public class BattleUi {
         logArea.setText("");
         appendLog("Battle started with " + ruleSet + " rules. Choose an action.");
         refreshStatus();
+        refreshBattleSprites();
         refreshActionButtons();
         cardLayout.show(rootPanel, BATTLE_SCREEN);
     }
@@ -261,6 +303,127 @@ public class BattleUi {
     private void refreshStatus() {
         playerOneStatusArea.setText(buildPlayerStatus(humanPlayer));
         playerTwoStatusArea.setText(buildPlayerStatus(aiPlayer));
+    }
+
+    private void refreshStartPreviews() {
+        setSpriteIcon(humanPreviewLabel, selectedOption(humanSelector).standingIcon(), selectedOption(humanSelector).toString());
+        setSpriteIcon(aiPreviewLabel, selectedOption(aiSelector).standingIcon(), selectedOption(aiSelector).toString());
+    }
+
+    private void refreshBattleSprites() {
+        playFightingAnimation(playerOneSpriteLabel, selectedOption(humanSelector), SpriteOrientation.SE, true);
+        playFightingAnimation(playerTwoSpriteLabel, selectedOption(aiSelector), SpriteOrientation.SW, false);
+    }
+
+    private JLabel buildSpriteLabel() {
+        JLabel label = new JLabel();
+        label.setHorizontalAlignment(JLabel.CENTER);
+        label.setVerticalAlignment(JLabel.CENTER);
+        label.setPreferredSize(SPRITE_SIZE);
+        label.setMinimumSize(SPRITE_SIZE);
+        label.setOpaque(true);
+        label.setBackground(SPRITE_BACKGROUND);
+        label.setBorder(BorderFactory.createLineBorder(SPRITE_BORDER));
+        return label;
+    }
+
+    private void setSpriteIcon(JLabel label, ImageIcon icon, String fallbackText) {
+        label.setIcon(icon);
+        label.setText(icon == null ? fallbackText : "");
+    }
+
+    private void playFightingAnimation(JLabel label, CharacterOption characterOption, SpriteOrientation orientation, boolean playerOne) {
+        stopFightAnimation(playerOne);
+
+        GifAnimation animation = characterOption.fightingAnimation(orientation);
+        if (animation.frames.isEmpty()) {
+            setSpriteIcon(label, null, characterOption.toString());
+            return;
+        }
+
+        label.setIcon(animation.frames.get(0));
+        label.setText("");
+        Timer timer = new Timer(animation.delayAt(0), null);
+        final int[] frameIndex = new int[] {0};
+        timer.addActionListener(e -> {
+            frameIndex[0] = (frameIndex[0] + 1) % animation.frames.size();
+            label.setIcon(animation.frames.get(frameIndex[0]));
+            timer.setDelay(animation.delayAt(frameIndex[0]));
+        });
+        if (playerOne) {
+            playerOneFightTimer = timer;
+        } else {
+            playerTwoFightTimer = timer;
+        }
+        timer.start();
+    }
+
+    private void playDyingAnimation(JLabel label, CharacterOption characterOption, SpriteOrientation orientation, boolean playerOne) {
+        stopFightAnimation(playerOne);
+        Timer existingTimer = playerOne ? playerOneDeathTimer : playerTwoDeathTimer;
+        if (existingTimer != null && existingTimer.isRunning()) {
+            existingTimer.stop();
+        }
+
+        GifAnimation animation = characterOption.dyingAnimation(orientation);
+        if (animation.frames.isEmpty()) {
+            setSpriteIcon(label, null, characterOption.toString());
+            return;
+        }
+
+        label.setIcon(animation.frames.get(0));
+        label.setText("");
+        Timer timer = new Timer(animation.delayAt(0), null);
+        final int[] frameIndex = new int[] {0};
+        timer.addActionListener(e -> {
+            frameIndex[0]++;
+            if (frameIndex[0] >= animation.frames.size()) {
+                timer.stop();
+                label.setIcon(animation.frames.get(animation.frames.size() - 1));
+                return;
+            }
+            label.setIcon(animation.frames.get(frameIndex[0]));
+            timer.setDelay(animation.delayAt(frameIndex[0]));
+        });
+        if (playerOne) {
+            playerOneDeathTimer = timer;
+        } else {
+            playerTwoDeathTimer = timer;
+        }
+        timer.start();
+    }
+
+    private void stopFightAnimation(boolean playerOne) {
+        Timer timer = playerOne ? playerOneFightTimer : playerTwoFightTimer;
+        if (timer != null) {
+            timer.stop();
+        }
+        if (playerOne) {
+            playerOneFightTimer = null;
+        } else {
+            playerTwoFightTimer = null;
+        }
+    }
+
+    private void stopFightAnimations() {
+        stopFightAnimation(true);
+        stopFightAnimation(false);
+    }
+
+    private void stopDeathAnimations() {
+        if (playerOneDeathTimer != null) {
+            playerOneDeathTimer.stop();
+            playerOneDeathTimer = null;
+        }
+        if (playerTwoDeathTimer != null) {
+            playerTwoDeathTimer.stop();
+            playerTwoDeathTimer = null;
+        }
+    }
+
+    private void stopSpriteAnimations() {
+        stopFightAnimations();
+        stopDeathAnimations();
     }
 
     private String buildPlayerStatus(Player player) {
@@ -434,6 +597,13 @@ public class BattleUi {
                 appendLog("Winner: " + winner);
                 highlightWinner(humanPlayer.character().isAlive() ? playerOneStatusPanel : playerTwoStatusPanel);
             }
+            stopFightAnimations();
+            if (!humanPlayer.character().isAlive()) {
+                playDyingAnimation(playerOneSpriteLabel, selectedOption(humanSelector), SpriteOrientation.SE, true);
+            }
+            if (!aiPlayer.character().isAlive()) {
+                playDyingAnimation(playerTwoSpriteLabel, selectedOption(aiSelector), SpriteOrientation.SW, false);
+            }
             refreshActionButtons();
             return true;
         }
@@ -488,12 +658,16 @@ public class BattleUi {
         playerTwoLockMessageLabel.setText(" ");
         clearWinnerHighlight();
         logArea.setText("");
+        stopSpriteAnimations();
         playerOneActionPanel.removeAll();
         playerOneActionPanel.revalidate();
         playerOneActionPanel.repaint();
         playerTwoActionPanel.removeAll();
         playerTwoActionPanel.revalidate();
         playerTwoActionPanel.repaint();
+        setSpriteIcon(playerOneSpriteLabel, null, "");
+        setSpriteIcon(playerTwoSpriteLabel, null, "");
+        refreshStartPreviews();
         cardLayout.show(rootPanel, START_SCREEN);
     }
 
@@ -519,6 +693,17 @@ public class BattleUi {
         GENERAL,
         ATTACK,
         CONSUMABLE
+    }
+
+    private enum SpriteOrientation {
+        SE("se"),
+        SW("sw");
+
+        private final String suffix;
+
+        SpriteOrientation(String suffix) {
+            this.suffix = suffix;
+        }
     }
 
     private enum OpponentMode {
@@ -565,9 +750,157 @@ public class BattleUi {
 
         abstract Character create(RuleSet ruleSet);
 
+        ImageIcon standingIcon() {
+            return loadIcon(label + "/rotations/south.png");
+        }
+
+        GifAnimation fightingAnimation(SpriteOrientation orientation) {
+            return loadGifAnimation(label + "/animations/fighting_stance_" + orientation.suffix + ".gif");
+        }
+
+        GifAnimation dyingAnimation(SpriteOrientation orientation) {
+            return loadGifAnimation(label + "/animations/dying_" + orientation.suffix + ".gif");
+        }
+
+        private ImageIcon loadIcon(String path) {
+            if (ICON_CACHE.containsKey(path)) {
+                return ICON_CACHE.get(path);
+            }
+
+            URL resource = BattleUi.class.getClassLoader().getResource(path);
+            ImageIcon icon = null;
+            if (resource != null) {
+                icon = new ImageIcon(resource);
+            } else {
+                File resourceFile = new File("src/main/resources", path);
+                if (resourceFile.isFile()) {
+                    icon = new ImageIcon(resourceFile.getPath());
+                }
+            }
+
+            if (icon == null || icon.getIconWidth() <= 0 || icon.getIconHeight() <= 0) {
+                ICON_CACHE.put(path, null);
+                return null;
+            }
+
+            Image scaledImage = icon.getImage().getScaledInstance(
+                SPRITE_IMAGE_SIZE,
+                SPRITE_IMAGE_SIZE,
+                Image.SCALE_FAST
+            );
+            ImageIcon scaledIcon = new ImageIcon(scaledImage);
+            ICON_CACHE.put(path, scaledIcon);
+            return scaledIcon;
+        }
+
+        private GifAnimation loadGifAnimation(String path) {
+            URL resource = BattleUi.class.getClassLoader().getResource(path);
+            File resourceFile = new File("src/main/resources", path);
+            try (ImageInputStream input = resource != null
+                ? ImageIO.createImageInputStream(resource.openStream())
+                : resourceFile.isFile() ? ImageIO.createImageInputStream(resourceFile) : null) {
+                if (input == null) {
+                    return GifAnimation.empty();
+                }
+                Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName("gif");
+                if (!readers.hasNext()) {
+                    return GifAnimation.empty();
+                }
+
+                ImageReader reader = readers.next();
+                try {
+                    reader.setInput(input);
+                    int frameCount = reader.getNumImages(true);
+                    List<ImageIcon> frames = new ArrayList<>();
+                    List<Integer> delays = new ArrayList<>();
+                    for (int i = 0; i < frameCount; i++) {
+                        BufferedImage frame = reader.read(i);
+                        frames.add(scaleFrame(frame));
+                        delays.add(frameDelayMs(reader.getImageMetadata(i)));
+                    }
+                    return new GifAnimation(frames, delays);
+                } finally {
+                    reader.dispose();
+                }
+            } catch (IOException ignored) {
+                return GifAnimation.empty();
+            }
+        }
+
+        private ImageIcon scaleFrame(BufferedImage frame) {
+            Image scaledImage = frame.getScaledInstance(
+                SPRITE_IMAGE_SIZE,
+                SPRITE_IMAGE_SIZE,
+                Image.SCALE_FAST
+            );
+            return new ImageIcon(scaledImage);
+        }
+
+        private int frameDelayMs(IIOMetadata metadata) {
+            String metadataFormat = metadata.getNativeMetadataFormatName();
+            if (metadataFormat == null) {
+                return 100;
+            }
+
+            Node root = metadata.getAsTree(metadataFormat);
+            Node graphicsControlExtension = findNode(root, "GraphicControlExtension");
+            if (graphicsControlExtension == null || graphicsControlExtension.getAttributes() == null) {
+                return 100;
+            }
+
+            Node delayNode = graphicsControlExtension.getAttributes().getNamedItem("delayTime");
+            if (delayNode == null) {
+                return 100;
+            }
+
+            try {
+                int hundredths = Integer.parseInt(delayNode.getNodeValue());
+                return Math.max(20, hundredths * 10);
+            } catch (NumberFormatException ignored) {
+                return 100;
+            }
+        }
+
+        private Node findNode(Node node, String name) {
+            if (node == null) {
+                return null;
+            }
+            if (name.equals(node.getNodeName())) {
+                return node;
+            }
+            for (Node child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
+                Node found = findNode(child, name);
+                if (found != null) {
+                    return found;
+                }
+            }
+            return null;
+        }
+
         @Override
         public String toString() {
             return label;
+        }
+    }
+
+    private static final class GifAnimation {
+        private final List<ImageIcon> frames;
+        private final List<Integer> delays;
+
+        private GifAnimation(List<ImageIcon> frames, List<Integer> delays) {
+            this.frames = frames;
+            this.delays = delays;
+        }
+
+        private static GifAnimation empty() {
+            return new GifAnimation(new ArrayList<>(), new ArrayList<>());
+        }
+
+        private int delayAt(int index) {
+            if (index < 0 || index >= delays.size()) {
+                return 100;
+            }
+            return delays.get(index);
         }
     }
 }

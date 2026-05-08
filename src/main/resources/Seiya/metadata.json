@@ -1,0 +1,43 @@
+{
+  "character": {
+    "id": "475ac48e-37de-4b92-b217-114ba9e85129",
+    "name": "8-bit pixel art full-body original Pegasus-themed armored warrior, young heroic martial artist, silver and white light armor, red undersuit accents, wing-like helmet details, dynamic confident stance, clenched fists, cosmic star energy hints, transparent background, 64x64 sprite, clean silhouette, crisp pixels, limited palette, no text, no watermark",
+    "prompt": "8-bit pixel art full-body original Pegasus-themed armored warrior, young heroic martial artist, silver and white light armor, red undersuit accents, wing-like helmet details, dynamic confident stance, clenched fists, cosmic star energy hints, transparent background, 64x64 sprite, clean silhouette, crisp pixels, limited palette, no text, no watermark",
+    "size": {
+      "width": 92,
+      "height": 92
+    },
+    "template_id": "mannequin",
+    "directions": 8,
+    "view": "side",
+    "created_at": "2026-04-27T06:49:44.29778+00:00"
+  },
+  "frames": {
+    "rotations": {
+      "south": "rotations/south.png",
+      "south-east": "rotations/south-east.png",
+      "east": "rotations/east.png",
+      "north-east": "rotations/north-east.png",
+      "north": "rotations/north.png",
+      "north-west": "rotations/north-west.png",
+      "west": "rotations/west.png",
+      "south-west": "rotations/south-west.png"
+    },
+    "animations": {
+      "Fight_Stance_Idle-57593d26": {
+        "south-east": [
+          "animations/Fight_Stance_Idle-57593d26/south-east/frame_000.png",
+          "animations/Fight_Stance_Idle-57593d26/south-east/frame_001.png",
+          "animations/Fight_Stance_Idle-57593d26/south-east/frame_002.png",
+          "animations/Fight_Stance_Idle-57593d26/south-east/frame_003.png",
+          "animations/Fight_Stance_Idle-57593d26/south-east/frame_004.png",
+          "animations/Fight_Stance_Idle-57593d26/south-east/frame_005.png",
+          "animations/Fight_Stance_Idle-57593d26/south-east/frame_006.png",
+          "animations/Fight_Stance_Idle-57593d26/south-east/frame_007.png"
+        ]
+      }
+    }
+  },
+  "export_version": "2.0",
+  "export_date": "2026-05-07T06:17:26.214918"
+}
