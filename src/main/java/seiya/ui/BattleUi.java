@@ -62,6 +62,8 @@ public class BattleUi {
     private static final Dimension ACTION_SCROLL_SIZE = new Dimension(480, 120);
     private static final Dimension SPRITE_SIZE = new Dimension(156, 156);
     private static final int SPRITE_IMAGE_SIZE = 138;
+    private static final double GIF_PLAYBACK_SPEED = 2.0;
+    private static final int MIN_GIF_FRAME_DELAY_MS = 20;
     private static final Map<String, ImageIcon> ICON_CACHE = new HashMap<>();
 
     private final JFrame frame;
@@ -99,6 +101,8 @@ public class BattleUi {
     private Timer playerTwoFightTimer;
     private Timer playerOneDeathTimer;
     private Timer playerTwoDeathTimer;
+    private Timer playerOneCelebrationTimer;
+    private Timer playerTwoCelebrationTimer;
 
     private BattleUi() {
         frame = new JFrame("Seiya Battle");
@@ -359,13 +363,35 @@ public class BattleUi {
     }
 
     private void playDyingAnimation(JLabel label, CharacterOption characterOption, SpriteOrientation orientation, boolean playerOne) {
-        stopFightAnimation(playerOne);
-        Timer existingTimer = playerOne ? playerOneDeathTimer : playerTwoDeathTimer;
-        if (existingTimer != null && existingTimer.isRunning()) {
-            existingTimer.stop();
-        }
+        playFiniteAnimation(
+            label,
+            characterOption,
+            characterOption.dyingAnimation(orientation),
+            playerOne,
+            SpriteAnimationType.DYING
+        );
+    }
 
-        GifAnimation animation = characterOption.dyingAnimation(orientation);
+    private void playCelebrationAnimation(JLabel label, CharacterOption characterOption, SpriteOrientation orientation, boolean playerOne) {
+        playFiniteAnimation(
+            label,
+            characterOption,
+            characterOption.celebrationAnimation(orientation),
+            playerOne,
+            SpriteAnimationType.CELEBRATION
+        );
+    }
+
+    private void playFiniteAnimation(
+        JLabel label,
+        CharacterOption characterOption,
+        GifAnimation animation,
+        boolean playerOne,
+        SpriteAnimationType animationType
+    ) {
+        stopFightAnimation(playerOne);
+        stopFiniteAnimation(playerOne, animationType);
+
         if (animation.frames.isEmpty()) {
             setSpriteIcon(label, null, characterOption.toString());
             return;
@@ -385,12 +411,40 @@ public class BattleUi {
             label.setIcon(animation.frames.get(frameIndex[0]));
             timer.setDelay(animation.delayAt(frameIndex[0]));
         });
-        if (playerOne) {
-            playerOneDeathTimer = timer;
-        } else {
-            playerTwoDeathTimer = timer;
-        }
+        setFiniteAnimationTimer(playerOne, animationType, timer);
         timer.start();
+    }
+
+    private void stopFiniteAnimation(boolean playerOne, SpriteAnimationType animationType) {
+        Timer timer = finiteAnimationTimer(playerOne, animationType);
+        if (timer != null) {
+            timer.stop();
+        }
+        setFiniteAnimationTimer(playerOne, animationType, null);
+    }
+
+    private Timer finiteAnimationTimer(boolean playerOne, SpriteAnimationType animationType) {
+        if (animationType == SpriteAnimationType.DYING) {
+            return playerOne ? playerOneDeathTimer : playerTwoDeathTimer;
+        }
+        return playerOne ? playerOneCelebrationTimer : playerTwoCelebrationTimer;
+    }
+
+    private void setFiniteAnimationTimer(boolean playerOne, SpriteAnimationType animationType, Timer timer) {
+        if (animationType == SpriteAnimationType.DYING) {
+            if (playerOne) {
+                playerOneDeathTimer = timer;
+            } else {
+                playerTwoDeathTimer = timer;
+            }
+            return;
+        }
+
+        if (playerOne) {
+            playerOneCelebrationTimer = timer;
+        } else {
+            playerTwoCelebrationTimer = timer;
+        }
     }
 
     private void stopFightAnimation(boolean playerOne) {
@@ -421,9 +475,21 @@ public class BattleUi {
         }
     }
 
+    private void stopCelebrationAnimations() {
+        if (playerOneCelebrationTimer != null) {
+            playerOneCelebrationTimer.stop();
+            playerOneCelebrationTimer = null;
+        }
+        if (playerTwoCelebrationTimer != null) {
+            playerTwoCelebrationTimer.stop();
+            playerTwoCelebrationTimer = null;
+        }
+    }
+
     private void stopSpriteAnimations() {
         stopFightAnimations();
         stopDeathAnimations();
+        stopCelebrationAnimations();
     }
 
     private String buildPlayerStatus(Player player) {
@@ -600,9 +666,13 @@ public class BattleUi {
             stopFightAnimations();
             if (!humanPlayer.character().isAlive()) {
                 playDyingAnimation(playerOneSpriteLabel, selectedOption(humanSelector), SpriteOrientation.SE, true);
+            } else if (!aiPlayer.character().isAlive()) {
+                playCelebrationAnimation(playerOneSpriteLabel, selectedOption(humanSelector), SpriteOrientation.SE, true);
             }
             if (!aiPlayer.character().isAlive()) {
                 playDyingAnimation(playerTwoSpriteLabel, selectedOption(aiSelector), SpriteOrientation.SW, false);
+            } else if (!humanPlayer.character().isAlive()) {
+                playCelebrationAnimation(playerTwoSpriteLabel, selectedOption(aiSelector), SpriteOrientation.SW, false);
             }
             refreshActionButtons();
             return true;
@@ -695,6 +765,11 @@ public class BattleUi {
         CONSUMABLE
     }
 
+    private enum SpriteAnimationType {
+        DYING,
+        CELEBRATION
+    }
+
     private enum SpriteOrientation {
         SE("se"),
         SW("sw");
@@ -760,6 +835,10 @@ public class BattleUi {
 
         GifAnimation dyingAnimation(SpriteOrientation orientation) {
             return loadGifAnimation(label + "/animations/dying_" + orientation.suffix + ".gif");
+        }
+
+        GifAnimation celebrationAnimation(SpriteOrientation orientation) {
+            return loadGifAnimation(label + "/animations/" + label + "_celebration_" + orientation.suffix + ".gif");
         }
 
         private ImageIcon loadIcon(String path) {
@@ -855,7 +934,7 @@ public class BattleUi {
 
             try {
                 int hundredths = Integer.parseInt(delayNode.getNodeValue());
-                return Math.max(20, hundredths * 10);
+                return Math.max(MIN_GIF_FRAME_DELAY_MS, hundredths * 10);
             } catch (NumberFormatException ignored) {
                 return 100;
             }
@@ -900,7 +979,7 @@ public class BattleUi {
             if (index < 0 || index >= delays.size()) {
                 return 100;
             }
-            return delays.get(index);
+            return Math.max(MIN_GIF_FRAME_DELAY_MS, (int) Math.round(delays.get(index) / GIF_PLAYBACK_SPEED));
         }
     }
 }
