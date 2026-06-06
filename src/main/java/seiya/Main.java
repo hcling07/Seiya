@@ -8,9 +8,10 @@ import seiya.game.BattleGame;
 import seiya.game.Player;
 import seiya.game.RuleSet;
 import seiya.ui.BattleUi;
+import seiya.web.WebGameServer;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         String mode = args.length == 0 ? "ui" : args[0].toLowerCase();
         if ("ui".equals(mode)) {
             BattleUi.launch();
@@ -27,6 +28,12 @@ public class Main {
             return;
         }
 
-        throw new IllegalArgumentException("Unsupported mode: " + mode + ". Use ui or ava.");
+        if ("web".equals(mode)) {
+            int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
+            new WebGameServer(port).start();
+            return;
+        }
+
+        throw new IllegalArgumentException("Unsupported mode: " + mode + ". Use ui, ava, or web.");
     }
 }

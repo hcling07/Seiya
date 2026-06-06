@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seiya Multiplayer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+      --border: #c8ccd4;
+      --panel: #f7f8fa;
+      --ink: #1f2430;
+      --muted: #667085;
+      --accent: #0f766e;
+      --accent-dark: #115e59;
+      --danger: #b42318;
+      --win: #dff3df;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef1f5;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    button,
+    select,
+    input {
+      min-height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--ink);
+      font: inherit;
+      padding: 7px 10px;
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--accent-dark);
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+
+    .setup,
+    .notice,
+    .player,
+    .log {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .setup {
+      display: grid;
+      grid-template-columns: 90px repeat(5, minmax(130px, 1fr));
+      gap: 10px;
+      align-items: end;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .setupPreview {
+      width: 72px;
+      height: 72px;
+      display: grid;
+      place-items: center;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .setupPreview img {
+      max-width: 64px;
+      max-height: 64px;
+      object-fit: contain;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .notice {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .notice strong {
+      font-size: 18px;
+    }
+
+    .copy {
+      background: #ffffff;
+      border-color: var(--border);
+      color: var(--ink);
+    }
+
+    .roomControls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .exit {
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .players {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .player {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .player.winner {
+      background: var(--win);
+    }
+
+    .sprite {
+      width: 156px;
+      height: 156px;
+      display: grid;
+      place-items: center;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .sprite img {
+      width: 138px;
+      height: 138px;
+      image-rendering: auto;
+      object-fit: contain;
+    }
+
+    .stats h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 12px;
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    .actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .actionGroup {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .actionGroup span {
+      width: 92px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .actionGroup button {
+      min-width: 130px;
+    }
+
+    .waiting {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .log {
+      margin-top: 14px;
+      padding: 14px;
+    }
+
+    .log h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .logLines {
+      height: 190px;
+      overflow: auto;
+      padding: 10px;
+      background: #111827;
+      color: #f9fafb;
+      border-radius: 6px;
+      font-family: Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .error {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    @media (max-width: 860px) {
+      .setup,
+      .players,
+      .player {
+        grid-template-columns: 1fr;
+      }
+
+      .sprite {
+        margin: 0 auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Seiya Multiplayer</h1>
+    <div id="connection">Not connected</div>
+  </header>
+  <main>
+    <section class="setup">
+      <div class="setupPreview">
+        <img id="characterPreview" alt="Selected character">
+      </div>
+      <label>
+        Character
+        <select id="character"></select>
+      </label>
+      <label>
+        Rule Set
+        <select id="ruleSet"></select>
+      </label>
+      <button id="createGame">Create Game</button>
+      <label>
+        Room Code
+        <input id="roomCode" maxlength="5" placeholder="ABCDE">
+      </label>
+      <button id="joinGame">Join Game</button>
+    </section>
+
+    <section class="notice" id="roomNotice" hidden>
+      <div>
+        <div>Room</div>
+        <strong id="roomLabel"></strong>
+      </div>
+      <div class="roomControls">
+        <button class="copy" id="copyLink">Copy Room Code</button>
+        <button id="rematchGame" hidden>Rematch</button>
+        <button class="exit" id="exitGame">Exit</button>
+      </div>
+    </section>
+
+    <div id="message" class="error"></div>
+
+    <section class="players" id="players"></section>
+
+    <section class="log">
+      <h2>Action Log</h2>
+      <div class="logLines" id="logLines"></div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      roomCode: new URLSearchParams(location.search).get('room') || '',
+      token: '',
+      poll: null,
+      lastRenderKey: ''
+    };
+
+    const els = {
+      character: document.getElementById('character'),
+      characterPreview: document.getElementById('characterPreview'),
+      ruleSet: document.getElementById('ruleSet'),
+      createGame: document.getElementById('createGame'),
+      joinGame: document.getElementById('joinGame'),
+      roomCode: document.getElementById('roomCode'),
+      roomNotice: document.getElementById('roomNotice'),
+      roomLabel: document.getElementById('roomLabel'),
+      copyLink: document.getElementById('copyLink'),
+      rematchGame: document.getElementById('rematchGame'),
+      exitGame: document.getElementById('exitGame'),
+      message: document.getElementById('message'),
+      players: document.getElementById('players'),
+      logLines: document.getElementById('logLines'),
+      connection: document.getElementById('connection')
+    };
+
+    function storageKey(roomCode) {
+      return `seiya:${roomCode}:token`;
+    }
+
+    function setSetupDisabled(disabled) {
+      els.character.disabled = disabled;
+      els.ruleSet.disabled = disabled;
+      els.createGame.disabled = disabled;
+      els.joinGame.disabled = disabled;
+      els.roomCode.disabled = disabled;
+    }
+
+    function setRoomControlsEnabled(enabled) {
+      els.copyLink.disabled = !enabled;
+      els.exitGame.disabled = !enabled;
+    }
+
+    function setMessage(message) {
+      els.message.textContent = message || '';
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, options);
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || json.message || 'Request failed');
+      }
+      return json;
+    }
+
+    function formBody(values) {
+      return {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams(values)
+      };
+    }
+
+    async function loadOptions() {
+      const options = await api('/api/options');
+      els.character.innerHTML = options.characters
+        .map(option => `<option value="${option.id}">${option.label}</option>`)
+        .join('');
+      els.ruleSet.innerHTML = options.ruleSets
+        .map(option => `<option value="${option.id}">${option.label}</option>`)
+        .join('');
+      updateCharacterPreview();
+    }
+
+    function updateCharacterPreview() {
+      const label = selectedCharacterLabel();
+      els.characterPreview.src = `/assets/${encodeURIComponent(label)}/rotations/south.png`;
+    }
+
+    function selectedCharacterLabel() {
+      const option = els.character.options[els.character.selectedIndex];
+      return option ? option.textContent : 'Seiya';
+    }
+
+    async function createGame() {
+      setMessage('');
+      const created = await api('/api/rooms', formBody({
+        character: els.character.value,
+        ruleSet: els.ruleSet.value
+      }));
+      enterRoom(created.roomCode, created.playerToken, created.state);
+    }
+
+    async function joinGame() {
+      setMessage('');
+      const roomCode = els.roomCode.value.trim().toUpperCase();
+      if (!roomCode) {
+        setMessage('Enter a room code.');
+        return;
+      }
+      const joined = await api(`/api/rooms/${encodeURIComponent(roomCode)}/join`, formBody({
+        character: els.character.value
+      }));
+      enterRoom(joined.roomCode, joined.playerToken, joined.state);
+    }
+
+    function enterRoom(roomCode, token, gameState) {
+      state.roomCode = roomCode;
+      state.token = token;
+      state.lastRenderKey = '';
+      localStorage.setItem(storageKey(roomCode), token);
+      history.replaceState(null, '', `?room=${encodeURIComponent(roomCode)}`);
+      els.roomCode.value = roomCode;
+      setSetupDisabled(true);
+      setRoomControlsEnabled(true);
+      render(gameState);
+      startPolling();
+    }
+
+    function leaveRoom() {
+      if (state.roomCode) {
+        localStorage.removeItem(storageKey(state.roomCode));
+      }
+      setMessage('');
+      state.roomCode = '';
+      state.token = '';
+      state.lastRenderKey = '';
+      if (state.poll) {
+        clearInterval(state.poll);
+        state.poll = null;
+      }
+      history.replaceState(null, '', location.pathname);
+      setSetupDisabled(false);
+      setRoomControlsEnabled(false);
+      els.roomNotice.hidden = true;
+      els.roomCode.value = '';
+      els.roomLabel.textContent = '';
+      els.connection.textContent = 'Not connected';
+      els.players.innerHTML = '';
+      els.logLines.textContent = '';
+    }
+
+    function startPolling() {
+      if (state.poll) {
+        clearInterval(state.poll);
+      }
+      state.poll = setInterval(refreshState, 1000);
+      refreshState();
+    }
+
+    async function refreshState() {
+      if (!state.roomCode || !state.token) {
+        return;
+      }
+      try {
+        const gameState = await api(`/api/rooms/${encodeURIComponent(state.roomCode)}?token=${encodeURIComponent(state.token)}`);
+        render(gameState);
+      } catch (error) {
+        els.connection.textContent = 'Disconnected';
+        if (error.message === 'Room not found.') {
+          leaveRoom();
+        } else {
+          setMessage(error.message);
+        }
+      }
+    }
+
+    async function submitAction(actionId) {
+      setMessage('');
+      try {
+        const result = await api(`/api/rooms/${encodeURIComponent(state.roomCode)}/actions`, formBody({
+          token: state.token,
+          action: actionId
+        }));
+        render(result.state);
+      } catch (error) {
+        setMessage(error.message);
+        refreshState();
+      }
+    }
+
+    async function rematchGame() {
+      setMessage('');
+      const result = await api(`/api/rooms/${encodeURIComponent(state.roomCode)}/rematch`, formBody({
+        token: state.token
+      }));
+      render(result.state);
+    }
+
+    async function exitGame() {
+      setMessage('');
+      const roomCode = state.roomCode;
+      const token = state.token;
+      leaveRoom();
+      if (roomCode && token) {
+        await api(`/api/rooms/${encodeURIComponent(roomCode)}/exit`, formBody({token}));
+      }
+    }
+
+    function render(gameState) {
+      const renderKey = JSON.stringify(gameState);
+      if (renderKey === state.lastRenderKey) {
+        return;
+      }
+      state.lastRenderKey = renderKey;
+
+      els.connection.textContent = gameState.status === 'WAITING' ? 'Waiting for opponent' : 'Connected';
+      els.roomNotice.hidden = false;
+      els.roomLabel.textContent = gameState.roomCode;
+      setRoomControlsEnabled(true);
+      els.rematchGame.hidden = gameState.status !== 'ENDED';
+      els.players.innerHTML = gameState.players.map(player => renderPlayer(player, gameState)).join('');
+      els.logLines.textContent = gameState.log.join('\n');
+      els.logLines.scrollTop = els.logLines.scrollHeight;
+
+      for (const button of document.querySelectorAll('[data-action]')) {
+        button.addEventListener('click', () => submitAction(button.dataset.action));
+      }
+    }
+
+    function renderPlayer(player, gameState) {
+      if (!player) {
+        return `<article class="player"><div class="waiting">Waiting for Player 2...</div></article>`;
+      }
+
+      const actionGroups = groupActions(player.availableActions || []);
+      const disabled = !player.you || player.pending || gameState.status !== 'ACTIVE';
+      const actionsHtml = player.you
+        ? renderActions(actionGroups, disabled)
+        : `<div class="waiting">${player.pending ? 'Action locked.' : 'Waiting for action.'}</div>`;
+      const winnerClass = player.winner ? ' winner' : '';
+
+      return `
+        <article class="player${winnerClass}">
+          <div class="sprite"><img src="${spritePath(player, gameState)}" alt="${player.character}"></div>
+          <div class="stats">
+            <h2>${player.playerName} - ${player.character}${player.you ? ' (You)' : ''}</h2>
+            <div class="meta">${renderStats(player, gameState)}</div>
+            <div class="actions">${actionsHtml}</div>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderStats(player, gameState) {
+      const stats = [];
+      if (gameState.ruleSet !== 'CLASSIC') {
+        stats.push(`HP: ${player.health}/${player.maxHealth}`);
+      }
+      stats.push(`Spirit: ${player.spirit}`);
+      stats.push(`Armor: ${player.armorWorn}`);
+      stats.push(`Remaining Armors: ${player.remainingArmor}`);
+      stats.push(`Defend: ${player.defendPercent}%`);
+      stats.push(`Status: ${player.alive ? 'Alive' : 'Defeated'}`);
+      return stats.map(stat => `<div>${stat}</div>`).join('');
+    }
+
+    function renderActions(groups, disabled) {
+      const names = ['General', 'Attack', 'Consumable'];
+      return names.map(name => {
+        const actions = groups[name] || [];
+        if (!actions.length) {
+          return '';
+        }
+        const buttons = actions.map(action => `
+          <button data-action="${escapeAttribute(action.id)}" ${disabled ? 'disabled' : ''}>
+            ${action.name}
+          </button>
+        `).join('');
+        return `<div class="actionGroup"><span>${name}</span>${buttons}</div>`;
+      }).join('') || '<div class="waiting">No actions available.</div>';
+    }
+
+    function groupActions(actions) {
+      return actions.reduce((groups, action) => {
+        if (!groups[action.category]) {
+          groups[action.category] = [];
+        }
+        groups[action.category].push(action);
+        return groups;
+      }, {});
+    }
+
+    function spritePath(player, gameState) {
+      const character = encodeURIComponent(player.character);
+      if (gameState.status === 'ENDED') {
+        const version = encodeURIComponent(gameState.log.length);
+        if (player.winner) {
+          return `/assets/${character}/animations/${character}_celebration_${player.orientation}.gif?v=${version}`;
+        }
+        if (!player.alive) {
+          return `/assets/${character}/animations/dying_${player.orientation}.gif?v=${version}`;
+        }
+      }
+      if (gameState.status === 'ACTIVE') {
+        return `/assets/${character}/animations/fighting_stance_${player.orientation}.gif`;
+      }
+      return `/assets/${character}/rotations/south.png`;
+    }
+
+    function escapeAttribute(value) {
+      return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
+    }
+
+    async function copyText(value) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+
+      const input = document.createElement('input');
+      input.value = value;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+    }
+
+    els.createGame.addEventListener('click', () => createGame().catch(error => setMessage(error.message)));
+    els.joinGame.addEventListener('click', () => joinGame().catch(error => setMessage(error.message)));
+    els.character.addEventListener('change', updateCharacterPreview);
+    els.rematchGame.addEventListener('click', () => rematchGame().catch(error => setMessage(error.message)));
+    els.exitGame.addEventListener('click', () => exitGame().catch(error => setMessage(error.message)));
+    els.copyLink.addEventListener('click', () => {
+      copyText(state.roomCode)
+        .then(() => setMessage('Room code copied.'))
+        .catch(error => setMessage(error.message));
+    });
+
+    async function boot() {
+      await loadOptions();
+      setRoomControlsEnabled(false);
+      if (state.roomCode) {
+        els.roomCode.value = state.roomCode;
+        state.token = localStorage.getItem(storageKey(state.roomCode)) || '';
+        if (state.token) {
+          setSetupDisabled(true);
+          setRoomControlsEnabled(true);
+          startPolling();
+        }
+      }
+    }
+
+    boot().catch(error => setMessage(error.message));
+  </script>
+</body>
+</html>
