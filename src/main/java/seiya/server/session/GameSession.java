@@ -1,4 +1,4 @@
-package seiya.game;
+package seiya.server.session;
 
 import seiya.actions.Action;
 import seiya.actions.Attack;
@@ -8,17 +8,18 @@ import seiya.actions.Gather;
 import seiya.actions.WearArmor;
 import seiya.characters.Character;
 import seiya.controllers.Controller;
-import seiya.util.NumberFormatter;
+import seiya.game.CharacterType;
+import seiya.game.Player;
+import seiya.game.RuleSet;
+import seiya.game.TurnResolver;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-public final class MultiplayerSession {
+public final class GameSession {
     private static final Controller NOOP_CONTROLLER = (self, opponent, available) -> available.get(0);
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -33,7 +34,7 @@ public final class MultiplayerSession {
     private boolean battleEnded;
     private String resultText;
 
-    public MultiplayerSession(String roomCode, RuleSet ruleSet, CharacterType hostCharacter) {
+    public GameSession(String roomCode, RuleSet ruleSet, CharacterType hostCharacter) {
         this.roomCode = roomCode;
         this.ruleSet = ruleSet;
         seats[0] = createSeat(1, hostCharacter);
@@ -119,36 +120,23 @@ public final class MultiplayerSession {
         return false;
     }
 
-    public synchronized String stateJson(String token) {
+    public synchronized SessionState state(String token) {
         touch();
         int requesterSlot = 0;
         if (token != null && !token.trim().isEmpty()) {
             requesterSlot = seatForToken(token).slot;
         }
 
-        StringBuilder json = new StringBuilder();
-        json.append('{');
-        field(json, "roomCode", roomCode).append(',');
-        field(json, "ruleSet", ruleSet.name()).append(',');
-        field(json, "status", status()).append(',');
-        json.append("\"requesterSlot\":").append(requesterSlot).append(',');
-        json.append("\"battleEnded\":").append(battleEnded).append(',');
-        nullableField(json, "resultText", resultText).append(',');
-        json.append("\"players\":[");
-        appendSeat(json, seats[0], requesterSlot);
-        json.append(',');
-        appendSeat(json, seats[1], requesterSlot);
-        json.append("],");
-        json.append("\"log\":[");
-        for (int i = 0; i < log.size(); i++) {
-            if (i > 0) {
-                json.append(',');
-            }
-            string(json, log.get(i));
-        }
-        json.append(']');
-        json.append('}');
-        return json.toString();
+        return new SessionState(
+            roomCode,
+            ruleSet.name(),
+            status(),
+            requesterSlot,
+            battleEnded,
+            resultText,
+            Arrays.asList(playerState(seats[0], requesterSlot), playerState(seats[1], requesterSlot)),
+            new ArrayList<>(log)
+        );
     }
 
     public synchronized boolean hasToken(String token) {
@@ -262,38 +250,34 @@ public final class MultiplayerSession {
         return "ACTIVE";
     }
 
-    private void appendSeat(StringBuilder json, PlayerSeat seat, int requesterSlot) {
+    private SessionState.PlayerState playerState(PlayerSeat seat, int requesterSlot) {
         if (seat == null) {
-            json.append("null");
-            return;
+            return null;
         }
 
         Character character = seat.player.character();
-        json.append('{');
-        json.append("\"slot\":").append(seat.slot).append(',');
-        json.append("\"you\":").append(seat.slot == requesterSlot).append(',');
-        field(json, "playerName", seat.player.name()).append(',');
-        field(json, "character", seat.characterType.label()).append(',');
-        field(json, "orientation", seat.slot == 1 ? "se" : "sw").append(',');
-        json.append("\"alive\":").append(character.isAlive()).append(',');
-        json.append("\"pending\":").append(seat.pendingActionId != null).append(',');
-        json.append("\"winner\":").append(isWinner(seat)).append(',');
-        json.append("\"health\":").append(NumberFormatter.fmt(character.health())).append(',');
-        json.append("\"maxHealth\":").append(NumberFormatter.fmt(character.maxHealth())).append(',');
-        json.append("\"spirit\":").append(NumberFormatter.fmt(character.spirit())).append(',');
-        json.append("\"armorWorn\":").append(character.armorWorn()).append(',');
-        json.append("\"remainingArmor\":").append(character.remainingArmor()).append(',');
-        json.append("\"defendPercent\":").append(character.defendPercent()).append(',');
-        json.append("\"availableActions\":[");
         List<Action> actions = battleEnded || seats[1] == null ? Collections.emptyList() : seat.player.availableActions();
-        for (int i = 0; i < actions.size(); i++) {
-            if (i > 0) {
-                json.append(',');
-            }
-            appendAction(json, actions.get(i));
+        List<SessionState.ActionState> actionStates = new ArrayList<>();
+        for (Action action : actions) {
+            actionStates.add(actionState(action));
         }
-        json.append(']');
-        json.append('}');
+        return new SessionState.PlayerState(
+            seat.slot,
+            seat.slot == requesterSlot,
+            seat.player.name(),
+            seat.characterType.label(),
+            seat.slot == 1 ? "se" : "sw",
+            character.isAlive(),
+            seat.pendingActionId != null,
+            isWinner(seat),
+            character.health(),
+            character.maxHealth(),
+            character.spirit(),
+            character.armorWorn(),
+            character.remainingArmor(),
+            character.defendPercent(),
+            actionStates
+        );
     }
 
     private boolean isWinner(PlayerSeat seat) {
@@ -304,15 +288,15 @@ public final class MultiplayerSession {
         return opponent != null && !opponent.player.character().isAlive();
     }
 
-    private void appendAction(StringBuilder json, Action action) {
-        json.append('{');
-        field(json, "id", action.name()).append(',');
-        field(json, "name", action.name()).append(',');
-        field(json, "category", actionCategory(action)).append(',');
-        json.append("\"attack\":").append(NumberFormatter.fmt(action.attackValue())).append(',');
-        json.append("\"defense\":").append(NumberFormatter.fmt(action.defenseValue())).append(',');
-        json.append("\"spiritCost\":").append(NumberFormatter.fmt(action.spiritCost()));
-        json.append('}');
+    private SessionState.ActionState actionState(Action action) {
+        return new SessionState.ActionState(
+            action.name(),
+            action.name(),
+            actionCategory(action),
+            action.attackValue(),
+            action.defenseValue(),
+            action.spiritCost()
+        );
     }
 
     private String actionCategory(Action action) {
@@ -334,105 +318,6 @@ public final class MultiplayerSession {
             builder.append(alphabet.charAt(RANDOM.nextInt(alphabet.length())));
         }
         return builder.toString();
-    }
-
-    private static StringBuilder field(StringBuilder json, String name, String value) {
-        string(json, name);
-        json.append(':');
-        string(json, value);
-        return json;
-    }
-
-    private static StringBuilder nullableField(StringBuilder json, String name, String value) {
-        string(json, name);
-        json.append(':');
-        if (value == null) {
-            json.append("null");
-        } else {
-            string(json, value);
-        }
-        return json;
-    }
-
-    private static void string(StringBuilder json, String value) {
-        json.append('"');
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            switch (c) {
-                case '\\':
-                    json.append("\\\\");
-                    break;
-                case '"':
-                    json.append("\\\"");
-                    break;
-                case '\n':
-                    json.append("\\n");
-                    break;
-                case '\r':
-                    json.append("\\r");
-                    break;
-                case '\t':
-                    json.append("\\t");
-                    break;
-                default:
-                    if (c < 0x20) {
-                        json.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
-                    } else {
-                        json.append(c);
-                    }
-                    break;
-            }
-        }
-        json.append('"');
-    }
-
-    public static final class Registry {
-        private static final long ENDED_ROOM_TTL_MILLIS = 2L * 60L * 1000L;
-        private static final long INACTIVE_ROOM_TTL_MILLIS = 15L * 60L * 1000L;
-
-        private final Map<String, MultiplayerSession> sessions = new ConcurrentHashMap<>();
-
-        public MultiplayerSession create(RuleSet ruleSet, CharacterType hostCharacter) {
-            cleanup();
-            String roomCode;
-            do {
-                roomCode = MultiplayerSession.newRoomCode();
-            } while (sessions.containsKey(roomCode));
-
-            MultiplayerSession session = new MultiplayerSession(roomCode, ruleSet, hostCharacter);
-            sessions.put(roomCode, session);
-            return session;
-        }
-
-        public MultiplayerSession get(String roomCode) {
-            cleanup();
-            MultiplayerSession session = sessions.get(roomCode == null ? "" : roomCode.toUpperCase(Locale.ROOT));
-            if (session == null) {
-                throw new IllegalArgumentException("Room not found.");
-            }
-            return session;
-        }
-
-        public boolean close(String roomCode, String token) {
-            MultiplayerSession session = get(roomCode);
-            boolean shouldRemove = session.exit(token);
-            if (shouldRemove) {
-                sessions.remove(session.roomCode());
-            }
-            return shouldRemove;
-        }
-
-        private void cleanup() {
-            long now = System.currentTimeMillis();
-            for (MultiplayerSession session : sessions.values()) {
-                long endedAt = session.endedAtMillis();
-                boolean expiredEndedRoom = endedAt > 0L && now - endedAt > ENDED_ROOM_TTL_MILLIS;
-                boolean expiredInactiveRoom = now - session.lastAccessMillis() > INACTIVE_ROOM_TTL_MILLIS;
-                if (expiredEndedRoom || expiredInactiveRoom) {
-                    sessions.remove(session.roomCode());
-                }
-            }
-        }
     }
 
     public static final class JoinResult {

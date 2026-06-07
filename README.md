@@ -161,6 +161,72 @@ Each push to the connected branch can trigger an automatic rebuild and deploymen
 
 Rooms currently exist only in the running Java process. A Render restart, deployment, or free-instance spin-down removes all active rooms. Keep the service at one instance until room state is moved to shared persistent storage.
 
+## Architecture
+
+The Java repository owns the shared game engine and authoritative server:
+
+```text
+seiya.actions / characters / game / controllers
+  Shared combat rules and AI
+
+seiya.server.session
+  Room lifecycle, players, turns, and typed session snapshots
+
+seiya.server.api
+  Versioned API requests, responses, and use cases
+
+seiya.server.transport
+  HTTP routing, JSON serialization, static files, and assets
+```
+
+The desktop Swing UI calls the shared Java game engine directly. Web, Android, and iOS clients call the authoritative server over HTTPS.
+
+A separate repository is recommended for each native client:
+
+```text
+Seiya
+  Java game core, server, desktop UI, and bundled web client
+
+Seiya-Android
+  Android UI, local client state, and API client
+
+Seiya-iOS
+  iOS UI, local client state, and API client
+```
+
+Keep the Java core and server together until the core needs independent releases or is shared by multiple Java services. Splitting them now would add versioning and publishing work without helping mobile clients, which consume the HTTP API rather than Java packages.
+
+## Server API
+
+New clients should use the versioned `/api/v1` routes:
+
+```text
+GET  /api/v1/options
+POST /api/v1/rooms
+POST /api/v1/rooms/{roomCode}/join
+GET  /api/v1/rooms/{roomCode}
+POST /api/v1/rooms/{roomCode}/actions
+POST /api/v1/rooms/{roomCode}/rematch
+POST /api/v1/rooms/{roomCode}/exit
+```
+
+`POST` requests accept JSON. For example:
+
+```json
+{
+  "character": "SEIYA",
+  "ruleSet": "DEFAULT"
+}
+```
+
+Authenticated room requests can provide the player token with:
+
+```text
+Authorization: Bearer <player-token>
+```
+
+The original unversioned form endpoints remain available for compatibility, but new mobile clients should use JSON and `/api/v1`.
+
 ## Balance Simulation
 
 Run the classic-rule character balance simulation from the project root:

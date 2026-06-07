@@ -382,7 +382,7 @@
     }
 
     async function loadOptions() {
-      const options = await api('/api/options');
+      const options = await api('/api/v1/options');
       els.character.innerHTML = options.characters
         .map(option => `<option value="${option.id}">${option.label}</option>`)
         .join('');
@@ -404,7 +404,7 @@
 
     async function createGame() {
       setMessage('');
-      const created = await api('/api/rooms', formBody({
+      const created = await api('/api/v1/rooms', formBody({
         character: els.character.value,
         ruleSet: els.ruleSet.value
       }));
@@ -418,7 +418,7 @@
         setMessage('Enter a room code.');
         return;
       }
-      const joined = await api(`/api/rooms/${encodeURIComponent(roomCode)}/join`, formBody({
+      const joined = await api(`/api/v1/rooms/${encodeURIComponent(roomCode)}/join`, formBody({
         character: els.character.value
       }));
       enterRoom(joined.roomCode, joined.playerToken, joined.state);
@@ -473,7 +473,7 @@
         return;
       }
       try {
-        const gameState = await api(`/api/rooms/${encodeURIComponent(state.roomCode)}?token=${encodeURIComponent(state.token)}`);
+        const gameState = await api(`/api/v1/rooms/${encodeURIComponent(state.roomCode)}?token=${encodeURIComponent(state.token)}`);
         render(gameState);
       } catch (error) {
         els.connection.textContent = 'Disconnected';
@@ -488,7 +488,7 @@
     async function submitAction(actionId) {
       setMessage('');
       try {
-        const result = await api(`/api/rooms/${encodeURIComponent(state.roomCode)}/actions`, formBody({
+        const result = await api(`/api/v1/rooms/${encodeURIComponent(state.roomCode)}/actions`, formBody({
           token: state.token,
           action: actionId
         }));
@@ -501,7 +501,7 @@
 
     async function rematchGame() {
       setMessage('');
-      const result = await api(`/api/rooms/${encodeURIComponent(state.roomCode)}/rematch`, formBody({
+      const result = await api(`/api/v1/rooms/${encodeURIComponent(state.roomCode)}/rematch`, formBody({
         token: state.token
       }));
       render(result.state);
@@ -513,7 +513,7 @@
       const token = state.token;
       leaveRoom();
       if (roomCode && token) {
-        await api(`/api/rooms/${encodeURIComponent(roomCode)}/exit`, formBody({token}));
+        await api(`/api/v1/rooms/${encodeURIComponent(roomCode)}/exit`, formBody({token}));
       }
     }
 

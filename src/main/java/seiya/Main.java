@@ -8,7 +8,7 @@ import seiya.game.BattleGame;
 import seiya.game.Player;
 import seiya.game.RuleSet;
 import seiya.ui.BattleUi;
-import seiya.web.WebGameServer;
+import seiya.server.transport.HttpGameServer;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -30,7 +30,7 @@ public class Main {
 
         if ("web".equals(mode)) {
             int port = webPort(args);
-            new WebGameServer(port).start();
+            new HttpGameServer(port).start();
             return;
         }
 

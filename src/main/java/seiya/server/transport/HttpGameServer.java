@@ -1,10 +1,10 @@
-package seiya.web;
+package seiya.server.transport;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import seiya.game.CharacterType;
-import seiya.game.MultiplayerSession;
-import seiya.game.RuleSet;
+import seiya.server.api.ApiModels;
+import seiya.server.api.GameApi;
+import seiya.server.session.GameSessionRegistry;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,16 +18,16 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
-public final class WebGameServer {
+public final class HttpGameServer {
     private final int port;
-    private final MultiplayerSession.Registry sessions = new MultiplayerSession.Registry();
+    private final GameApi gameApi = new GameApi(new GameSessionRegistry());
+    private final JsonCodec jsonCodec = new JsonCodec();
     private HttpServer server;
 
-    public WebGameServer(int port) {
+    public HttpGameServer(int port) {
         this.port = port;
     }
 
@@ -56,82 +56,131 @@ public final class WebGameServer {
             }
             serveResource(exchange, "web/index.html", "text/html; charset=utf-8");
         } catch (IllegalArgumentException e) {
-            sendJson(exchange, 400, errorJson(e.getMessage()));
+            sendJson(exchange, 400, new ApiModels.ErrorResponse(e.getMessage()));
         } catch (IllegalStateException e) {
-            sendJson(exchange, 409, errorJson(e.getMessage()));
+            sendJson(exchange, 409, new ApiModels.ErrorResponse(e.getMessage()));
         } catch (Exception e) {
-            sendJson(exchange, 500, errorJson("Server error: " + e.getMessage()));
+            sendJson(exchange, 500, new ApiModels.ErrorResponse("Server error: " + e.getMessage()));
         } finally {
             exchange.close();
         }
     }
 
     private void handleApi(HttpExchange exchange, String path) throws IOException {
-        if ("GET".equals(exchange.getRequestMethod()) && "/api/options".equals(path)) {
-            sendJson(exchange, 200, optionsJson());
+        String route = versionlessRoute(path);
+        if ("GET".equals(exchange.getRequestMethod()) && "/api/options".equals(route)) {
+            sendJson(exchange, 200, gameApi.options());
             return;
         }
 
-        if ("POST".equals(exchange.getRequestMethod()) && "/api/rooms".equals(path)) {
-            Map<String, String> params = params(exchange);
-            RuleSet ruleSet = parseRuleSet(params.get("ruleSet"));
-            CharacterType character = CharacterType.fromLabel(params.get("character"));
-            MultiplayerSession session = sessions.create(ruleSet, character);
-            MultiplayerSession.JoinResult join = session.hostJoinResult();
-            sendJson(exchange, 200, joinedJson(join, session));
+        if ("POST".equals(exchange.getRequestMethod()) && "/api/rooms".equals(route)) {
+            sendJson(exchange, 200, gameApi.createRoom(createRoomRequest(exchange)));
             return;
         }
 
-        String[] parts = path.split("/");
+        String[] parts = route.split("/");
         if (parts.length < 4 || !"api".equals(parts[1]) || !"rooms".equals(parts[2])) {
-            sendJson(exchange, 404, errorJson("API route not found."));
+            sendJson(exchange, 404, new ApiModels.ErrorResponse("API route not found."));
             return;
         }
 
-        String roomCode = parts[3].toUpperCase(Locale.ROOT);
-        MultiplayerSession session = sessions.get(roomCode);
+        String roomCode = parts[3];
 
         if ("POST".equals(exchange.getRequestMethod()) && parts.length == 5 && "join".equals(parts[4])) {
-            Map<String, String> params = params(exchange);
-            MultiplayerSession.JoinResult join = session.join(CharacterType.fromLabel(params.get("character")));
-            sendJson(exchange, 200, joinedJson(join, session));
+            sendJson(exchange, 200, gameApi.joinRoom(roomCode, joinRoomRequest(exchange)));
             return;
         }
 
         if ("GET".equals(exchange.getRequestMethod()) && parts.length == 4) {
-            String token = params(exchange).get("token");
-            sendJson(exchange, 200, session.stateJson(token));
+            sendJson(exchange, 200, gameApi.state(roomCode, requestToken(exchange, params(exchange).get("token"))));
             return;
         }
 
         if ("POST".equals(exchange.getRequestMethod()) && parts.length == 5 && "actions".equals(parts[4])) {
-            Map<String, String> params = params(exchange);
-            String token = params.get("token");
-            MultiplayerSession.SubmitResult result = session.submitAction(token, params.get("action"));
-            int status = result.accepted() ? 200 : 409;
-            sendJson(exchange, status, "{\"message\":" + jsonString(result.message()) + ",\"state\":"
-                + session.stateJson(token) + "}");
+            sendJson(exchange, 200, gameApi.submitAction(roomCode, actionRequest(exchange)));
             return;
         }
 
         if ("POST".equals(exchange.getRequestMethod()) && parts.length == 5 && "rematch".equals(parts[4])) {
-            Map<String, String> params = params(exchange);
-            String token = params.get("token");
-            session.rematch(token);
-            sendJson(exchange, 200, "{\"message\":\"Rematch started.\",\"state\":"
-                + session.stateJson(token) + "}");
+            sendJson(exchange, 200, gameApi.rematch(roomCode, tokenRequest(exchange)));
             return;
         }
 
         if ("POST".equals(exchange.getRequestMethod()) && parts.length == 5 && "exit".equals(parts[4])) {
-            Map<String, String> params = params(exchange);
-            boolean closed = sessions.close(roomCode, params.get("token"));
-            String message = closed ? "Room closed." : "Player exited. Room reset.";
-            sendJson(exchange, 200, "{\"message\":" + jsonString(message) + ",\"closed\":" + closed + "}");
+            sendJson(exchange, 200, gameApi.exit(roomCode, tokenRequest(exchange)));
             return;
         }
 
-        sendJson(exchange, 404, errorJson("API route not found."));
+        sendJson(exchange, 404, new ApiModels.ErrorResponse("API route not found."));
+    }
+
+    private String versionlessRoute(String path) {
+        if (path.equals("/api/v1")) {
+            return "/api";
+        }
+        if (path.startsWith("/api/v1/")) {
+            return "/api" + path.substring("/api/v1".length());
+        }
+        return path;
+    }
+
+    private ApiModels.CreateRoomRequest createRoomRequest(HttpExchange exchange) throws IOException {
+        if (isJson(exchange)) {
+            return jsonCodec.read(readAllBytes(exchange.getRequestBody()), ApiModels.CreateRoomRequest.class);
+        }
+        Map<String, String> params = params(exchange);
+        ApiModels.CreateRoomRequest request = new ApiModels.CreateRoomRequest();
+        request.setCharacter(params.get("character"));
+        request.setRuleSet(params.get("ruleSet"));
+        return request;
+    }
+
+    private ApiModels.JoinRoomRequest joinRoomRequest(HttpExchange exchange) throws IOException {
+        if (isJson(exchange)) {
+            return jsonCodec.read(readAllBytes(exchange.getRequestBody()), ApiModels.JoinRoomRequest.class);
+        }
+        ApiModels.JoinRoomRequest request = new ApiModels.JoinRoomRequest();
+        request.setCharacter(params(exchange).get("character"));
+        return request;
+    }
+
+    private ApiModels.ActionRequest actionRequest(HttpExchange exchange) throws IOException {
+        ApiModels.ActionRequest request;
+        if (isJson(exchange)) {
+            request = jsonCodec.read(readAllBytes(exchange.getRequestBody()), ApiModels.ActionRequest.class);
+        } else {
+            Map<String, String> params = params(exchange);
+            request = new ApiModels.ActionRequest();
+            request.setToken(params.get("token"));
+            request.setAction(params.get("action"));
+        }
+        request.setToken(requestToken(exchange, request.getToken()));
+        return request;
+    }
+
+    private ApiModels.TokenRequest tokenRequest(HttpExchange exchange) throws IOException {
+        ApiModels.TokenRequest request;
+        if (isJson(exchange)) {
+            request = jsonCodec.read(readAllBytes(exchange.getRequestBody()), ApiModels.TokenRequest.class);
+        } else {
+            request = new ApiModels.TokenRequest();
+            request.setToken(params(exchange).get("token"));
+        }
+        request.setToken(requestToken(exchange, request.getToken()));
+        return request;
+    }
+
+    private boolean isJson(HttpExchange exchange) {
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        return contentType != null && contentType.toLowerCase().contains("application/json");
+    }
+
+    private String requestToken(HttpExchange exchange, String fallback) {
+        String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+        if (authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return authorization.substring(7).trim();
+        }
+        return fallback;
     }
 
     private Map<String, String> params(HttpExchange exchange) throws IOException {
@@ -164,84 +213,10 @@ public final class WebGameServer {
         }
     }
 
-    private RuleSet parseRuleSet(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return RuleSet.DEFAULT;
-        }
-        return RuleSet.valueOf(value.trim().toUpperCase(Locale.ROOT));
-    }
-
-    private String optionsJson() {
-        StringBuilder json = new StringBuilder();
-        json.append("{\"characters\":[");
-        CharacterType[] characters = CharacterType.values();
-        for (int i = 0; i < characters.length; i++) {
-            if (i > 0) {
-                json.append(',');
-            }
-            json.append("{\"id\":").append(jsonString(characters[i].name()))
-                .append(",\"label\":").append(jsonString(characters[i].label())).append('}');
-        }
-        json.append("],\"ruleSets\":[");
-        RuleSet[] ruleSets = RuleSet.values();
-        for (int i = 0; i < ruleSets.length; i++) {
-            if (i > 0) {
-                json.append(',');
-            }
-            json.append("{\"id\":").append(jsonString(ruleSets[i].name()))
-                .append(",\"label\":").append(jsonString(ruleSets[i].toString())).append('}');
-        }
-        json.append("]}");
-        return json.toString();
-    }
-
-    private String joinedJson(MultiplayerSession.JoinResult join, MultiplayerSession session) {
-        return "{\"roomCode\":" + jsonString(session.roomCode())
-            + ",\"playerToken\":" + jsonString(join.token())
-            + ",\"playerSlot\":" + join.playerSlot()
-            + ",\"state\":" + session.stateJson(join.token()) + "}";
-    }
-
-    private String errorJson(String message) {
-        return "{\"error\":" + jsonString(message) + "}";
-    }
-
-    private static String jsonString(String value) {
-        StringBuilder json = new StringBuilder();
-        json.append('"');
-        if (value != null) {
-            for (int i = 0; i < value.length(); i++) {
-                char c = value.charAt(i);
-                switch (c) {
-                    case '\\':
-                        json.append("\\\\");
-                        break;
-                    case '"':
-                        json.append("\\\"");
-                        break;
-                    case '\n':
-                        json.append("\\n");
-                        break;
-                    case '\r':
-                        json.append("\\r");
-                        break;
-                    case '\t':
-                        json.append("\\t");
-                        break;
-                    default:
-                        json.append(c);
-                        break;
-                }
-            }
-        }
-        json.append('"');
-        return json.toString();
-    }
-
-    private void sendJson(HttpExchange exchange, int status, String body) throws IOException {
+    private void sendJson(HttpExchange exchange, int status, Object body) throws IOException {
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         exchange.getResponseHeaders().set("Cache-Control", "no-store");
-        send(exchange, status, body.getBytes(StandardCharsets.UTF_8));
+        send(exchange, status, jsonCodec.write(body));
     }
 
     private void sendText(HttpExchange exchange, int status, String body) throws IOException {
@@ -257,7 +232,7 @@ public final class WebGameServer {
         }
 
         String resourcePath = URLDecoder.decode(rawPath, StandardCharsets.UTF_8.name());
-        InputStream resource = WebGameServer.class.getClassLoader().getResourceAsStream(resourcePath);
+        InputStream resource = HttpGameServer.class.getClassLoader().getResourceAsStream(resourcePath);
         if (resource != null) {
             try (InputStream input = resource) {
                 byte[] bytes = readAllBytes(input);
@@ -287,7 +262,7 @@ public final class WebGameServer {
     }
 
     private void serveResource(HttpExchange exchange, String resourcePath, String contentType) throws IOException {
-        InputStream resource = WebGameServer.class.getClassLoader().getResourceAsStream(resourcePath);
+        InputStream resource = HttpGameServer.class.getClassLoader().getResourceAsStream(resourcePath);
         byte[] bytes;
         if (resource != null) {
             try (InputStream input = resource) {
