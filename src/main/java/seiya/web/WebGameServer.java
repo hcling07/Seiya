@@ -42,6 +42,10 @@ public final class WebGameServer {
     private void handle(HttpExchange exchange) throws IOException {
         try {
             String path = exchange.getRequestURI().getPath();
+            if ("/health".equals(path)) {
+                sendText(exchange, 200, "ok");
+                return;
+            }
             if (path.startsWith("/api/")) {
                 handleApi(exchange, path);
                 return;
@@ -236,6 +240,12 @@ public final class WebGameServer {
 
     private void sendJson(HttpExchange exchange, int status, String body) throws IOException {
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        exchange.getResponseHeaders().set("Cache-Control", "no-store");
+        send(exchange, status, body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void sendText(HttpExchange exchange, int status, String body) throws IOException {
+        exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
         exchange.getResponseHeaders().set("Cache-Control", "no-store");
         send(exchange, status, body.getBytes(StandardCharsets.UTF_8));
     }

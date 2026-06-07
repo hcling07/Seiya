@@ -1,0 +1,8 @@
+.claude
+.git
+.gradle
+.idea
+build
+out
+*.iml
+*.log

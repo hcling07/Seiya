@@ -29,11 +29,26 @@ public class Main {
         }
 
         if ("web".equals(mode)) {
-            int port = args.length > 1 ? Integer.parseInt(args[1]) : 8080;
+            int port = webPort(args);
             new WebGameServer(port).start();
             return;
         }
 
         throw new IllegalArgumentException("Unsupported mode: " + mode + ". Use ui, ava, or web.");
+    }
+
+    static int webPort(String[] args) {
+        return webPort(args, System.getenv("PORT"));
+    }
+
+    static int webPort(String[] args, String configuredPort) {
+        if (args.length > 1) {
+            return Integer.parseInt(args[1]);
+        }
+
+        if (configuredPort != null && !configuredPort.trim().isEmpty()) {
+            return Integer.parseInt(configuredPort.trim());
+        }
+        return 8080;
     }
 }
